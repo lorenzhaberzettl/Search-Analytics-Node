@@ -238,8 +238,8 @@ class PropertyTypeParameterGroup:
 
 @knext.parameter_group(label="Date Range")
 class DateRangeParameterGroup:
-    start_date = knext.DateTimeParameter(label="Start", description="Limit results to the specified interval start date (inclusive).")
-    end_date = knext.DateTimeParameter(label="End", description="Limit results to the specified interval end date (inclusive).")
+    start_date = knext.DateTimeParameter(label="Start (description contains info about bug in KNIME 5.3)", description="Limit results to the specified interval start date (inclusive). **KNIME version 5.3 is affected by a bug when using the date selection tool.** The date selection dialog may close instantly or not apply input from the mouse. You can mitigate this issue by **manually entering the dates with your keyboard** or using another version of KNIME. Please note that this issue is caused by KNIME, not the extension.")
+    end_date = knext.DateTimeParameter(label="End (description contains info about bug in KNIME 5.3)", description="Limit results to the specified interval end date (inclusive). **KNIME version 5.3 is affected by a bug when using the date selection tool.** The date selection dialog may close instantly or not apply input from the mouse. You can mitigate this issue by **manually entering the dates with your keyboard** or using another version of KNIME. Please note that this issue is caused by KNIME, not the extension.")
 
 
 @knext.parameter_group(label="Group By Dimension")
