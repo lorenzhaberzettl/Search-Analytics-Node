@@ -1,0 +1,70 @@
+name: Build
+
+on: workflow_dispatch
+
+jobs:
+  build:
+    name: Build for KNIME ${{ matrix.knime_version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        knime_version: ["5.3", "5.2", "5.1"]
+    env:
+      MINICONDA_HOME: /home/runner/miniconda3
+      MINICONDA_ENV_NAME: node-bundling
+      KNIME_VERSION: ${{ matrix.knime_version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Adjust config.yml
+        run: |
+          sed --in-place \
+            -e "s|src: \"\"|src: \"${PWD}/search\"|" \
+            -e "s|conda_env_path: \"\"|conda_env_path: \"${MINICONDA_HOME}/envs/${MINICONDA_ENV_NAME}\"|" \
+            -e 's|debug_mode: true|debug_mode: false|' \
+            config.yml
+      - name: Add Google OAUTH Info
+        env:
+          CLIENT_ID: ${{ secrets.GOOGLE_OAHTH_CLIENT_CONFIG_CLIENT_ID }}
+          PROJECT_ID: ${{ secrets.GOOGLE_OAHTH_CLIENT_CONFIG_PROJECT_ID }}
+          CLIENT_SECRET: ${{ secrets.GOOGLE_OAHTH_CLIENT_CONFIG_CLIENT_SECRET }}
+        run: |
+          sed --in-place \
+            -e "s|\"client_id\": \"\"|\"client_id\": \"${CLIENT_ID}\"|" \
+            -e "s|\"project_id\": \"\"|\"project_id\": \"${PROJECT_ID}\"|" \
+            -e "s|\"client_secret\": \"\"|\"client_secret\": \"${CLIENT_SECRET}\"|" \
+            search/search.py
+      - name: Adjust conda-env.yml
+        run: |
+          sed --in-place \
+            --regexp-extended "s|knime-extension=[0-9.]+|knime-extension=${KNIME_VERSION}|" \
+            conda-env.yml
+          sed --in-place \
+            --regexp-extended "s|knime-python-base=[0-9.]+|knime-python-base=${KNIME_VERSION}|" \
+            conda-env.yml
+      - name: Install Miniconda
+        run: |
+          mkdir "$MINICONDA_HOME"
+          wget 'https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh' -O "$MINICONDA_HOME/miniconda.sh"
+          bash "$MINICONDA_HOME/miniconda.sh" -b -u -p "$MINICONDA_HOME"
+          rm "$MINICONDA_HOME/miniconda.sh"
+          "$MINICONDA_HOME/bin/conda" init bash
+      - name: Create Miniconda Environment
+        run: |
+          source "$MINICONDA_HOME/etc/profile.d/conda.sh"
+          conda remove --name "$MINICONDA_ENV_NAME" --all --yes
+          conda create --name "$MINICONDA_ENV_NAME" --yes --channel knime --channel conda-forge "knime-extension-bundling=$KNIME_VERSION"
+      - name: Run build_python_extension.py
+        run: |
+          source "$MINICONDA_HOME/etc/profile.d/conda.sh"
+          conda activate "$MINICONDA_ENV_NAME"
+          #build_python_extension.py --include-packages search/ out/
+          build_python_extension.py search/ out/
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Search Analytics Node for KNIME ${{ matrix.knime_version }}
+          path: out/
+          retention-days: 2
+          if-no-files-found: error
+          include-hidden-files: false
