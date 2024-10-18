@@ -1,0 +1,10 @@
+name: "Search-Analytics-Node"
+author: "Vitus Haberzettl, Lorenz Haberzettl"
+env_yml_path: "../conda-env.yml"
+extension_module: "search"
+description: "Import data from Google Search Console into KNIME"
+long_description: "This KNIME extension imports data from Google Search Console into KNIME. For more information, visit https://searchanalyticsnode.com/"
+group_id: "com.searchanalyticsnode"
+version: 1.0.0
+vendor: "Haberzettl"
+license_file: "../LICENSE.TXT"

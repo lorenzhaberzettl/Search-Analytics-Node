@@ -1,0 +1,4 @@
+com.searchanalyticsnode.Search-Analytics-Node:
+  src: ""
+  conda_env_path: ""
+  debug_mode: false
