@@ -21,7 +21,6 @@ jobs:
           sed --in-place \
             -e "s|src: \"\"|src: \"${PWD}/search\"|" \
             -e "s|conda_env_path: \"\"|conda_env_path: \"${MINICONDA_HOME}/envs/${MINICONDA_ENV_NAME}\"|" \
-            -e 's|debug_mode: true|debug_mode: false|' \
             config.yml
       - name: Add Google OAUTH Info
         env:
