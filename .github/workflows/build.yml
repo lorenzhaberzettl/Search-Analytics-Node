@@ -24,9 +24,9 @@ jobs:
             config.yml
       - name: Add Google OAUTH Info
         env:
-          CLIENT_ID: ${{ secrets.GOOGLE_OAHTH_CLIENT_CONFIG_CLIENT_ID }}
-          PROJECT_ID: ${{ secrets.GOOGLE_OAHTH_CLIENT_CONFIG_PROJECT_ID }}
-          CLIENT_SECRET: ${{ secrets.GOOGLE_OAHTH_CLIENT_CONFIG_CLIENT_SECRET }}
+          CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_CONFIG_CLIENT_ID }}
+          PROJECT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_CONFIG_PROJECT_ID }}
+          CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_CONFIG_CLIENT_SECRET }}
         run: |
           sed --in-place \
             -e "s|\"client_id\": \"\"|\"client_id\": \"${CLIENT_ID}\"|" \
