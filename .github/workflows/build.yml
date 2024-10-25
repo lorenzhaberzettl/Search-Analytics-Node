@@ -51,7 +51,6 @@ jobs:
       - name: Create Miniconda Environment
         run: |
           source "$MINICONDA_HOME/etc/profile.d/conda.sh"
-          conda remove --name "$MINICONDA_ENV_NAME" --all --yes
           conda create --name "$MINICONDA_ENV_NAME" --yes --channel knime --channel conda-forge "knime-extension-bundling=$KNIME_VERSION"
       - name: Run build_python_extension.py
         run: |
