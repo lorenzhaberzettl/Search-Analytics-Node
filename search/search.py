@@ -99,7 +99,7 @@ search_auth_port_type = knext.port_type(
 )
 
 
-@knext.node(name="Search Analytics - Authenticator", node_type=knext.NodeType.OTHER, icon_path="authenticator.png", category="/", keywords=KNIME_NODE_KEYWORDS)
+@knext.node(name="Search Analytics - Authenticator", node_type=knext.NodeType.OTHER, icon_path="authenticator.png", category="/")
 @knext.output_port(name="Search Analytics Auth Port", description="", port_type=search_auth_port_type)
 class SearchAuthenticator:
     """This node allows you to authenticate yourself with Google.
@@ -299,7 +299,7 @@ class AdvancedParameterGroup:
     )
 
 
-@knext.node(name="Search Analytics - Query", node_type=knext.NodeType.SOURCE, icon_path="query.png", category="/", keywords=KNIME_NODE_KEYWORDS)
+@knext.node(name="Search Analytics - Query", node_type=knext.NodeType.SOURCE, icon_path="query.png", category="/")
 @knext.input_port(name="Search Analytics Auth Port", description="", port_type=search_auth_port_type)
 @knext.output_table(name="Result Table", description="")
 class SearchQuery:
