@@ -22,7 +22,7 @@ import pickle
 import copy
 import pandas
 import socket
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from random import randint
 
 import knime.extension as knext
@@ -238,8 +238,45 @@ class PropertyTypeParameterGroup:
 
 @knext.parameter_group(label="Date Range")
 class DateRangeParameterGroup:
-    start_date = knext.DateTimeParameter(label="Start", description="Limit results to the specified interval start date (inclusive).")
-    end_date = knext.DateTimeParameter(label="End", description="Limit results to the specified interval end date (inclusive).")
+    class IntervalOptions(knext.EnumParameterOptions):
+        d7 = ("Last 7 Days", "Query for the last 7 days.")
+        d28 = ("Last 28 Days", "Query for the last 28 days.")
+        d90 = ("Last 90 Days", "Query for the last 90 days.")
+        d180 = ("Last 180 Days", "Query for the last 180 days.")
+        d365 = ("Last 365 Days", "Query for the last 365 days.")
+        custom = ("Custom Interval", "Select a custom interval by manually specifying a start (inclusive) and end date (inclusive).")
+
+    interval = knext.EnumParameter(
+        label="Interval",
+        description="Specify the date range to limit results. **Except for the custom interval option, all the interval options end three days ago to ensure the results are fixed and will not change anymore.**",
+        default_value=IntervalOptions.d7.name,
+        enum=IntervalOptions,
+        since_version="1.1.0",
+        style=knext.EnumParameter.Style.DROPDOWN
+    )
+    
+    # If the show_time parameter is set to False, DateTimeParameter will return a date object;
+    # otherwise, a datetime object is returned.
+    custom_start_date = knext.DateTimeParameter(
+        label="Start",
+        description="Limit results to the specified interval start date (inclusive).",
+        default_value=datetime(year=datetime.now(tz=timezone.utc).year, month=1, day=1),
+        show_time=False
+    ).rule(
+        condition=knext.OneOf(subject=interval, values=[IntervalOptions.custom.name]),
+        effect=knext.Effect.SHOW
+    )
+    
+    custom_end_date = knext.DateTimeParameter(
+        label="End",
+        description="Limit results to the specified interval end date (inclusive).",
+        default_value=datetime.now(tz=timezone.utc) - timedelta(days=3),
+        show_time=False
+    ).rule(
+        condition=knext.OneOf(subject=interval, values=[IntervalOptions.custom.name]),
+        effect=knext.Effect.SHOW
+    )
+    
 
 
 @knext.parameter_group(label="Group By Dimension")
@@ -314,6 +351,27 @@ class SearchQuery:
     row = RowParameterGroup()
     advanced = AdvancedParameterGroup()
 
+    
+    def get_date_range(self):
+        if self.date_range.interval == DateRangeParameterGroup.IntervalOptions.custom.name:
+            return self.date_range.custom_start_date, self.date_range.custom_end_date
+        
+        today = datetime.now(tz=timezone.utc).date()
+        end_date = today - timedelta(days=3)
+
+        date_delta = 365 - 1
+        match (self.date_range.interval):
+            case DateRangeParameterGroup.IntervalOptions.d7.name:
+                date_delta = 7 - 1
+            case DateRangeParameterGroup.IntervalOptions.d28.name:
+                date_delta = 28 - 1
+            case DateRangeParameterGroup.IntervalOptions.d90.name:
+                date_delta = 90 - 1
+            case DateRangeParameterGroup.IntervalOptions.d180.name:
+                date_delta = 180 - 1
+        start_date = end_date - timedelta(days=date_delta)
+        return start_date, end_date
+    
 
     def get_selected_dimensions(self):
         selected = []
@@ -337,9 +395,11 @@ class SearchQuery:
     def get_request_body(self):
         body = {}
 
+        start_date, end_date = self.get_date_range()
+
         body["type"] = self.property_type.type
-        body["startDate"] = self.date_range.start_date.isoformat()
-        body["endDate"] = self.date_range.end_date.isoformat()
+        body["startDate"] = start_date.isoformat()
+        body["endDate"] = end_date.isoformat()
         body["dimensions"] = self.get_selected_dimensions()
         body["rowLimit"] = self.row.limit
         body["startRow"] = self.row.start
