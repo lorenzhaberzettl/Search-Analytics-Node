@@ -22,6 +22,7 @@ import pickle
 import copy
 import pandas
 import socket
+import time
 from datetime import date, datetime, timedelta, timezone
 from random import randint
 
@@ -294,9 +295,9 @@ class RowParameterGroup:
     limit = knext.IntParameter(
         label="Limit",
         description="Specify how many rows should be returned at most.",
-        default_value=25000,
+        default_value=100000,
         min_value=1,
-        max_value=25000
+        max_value=100000
     )
     start = knext.IntParameter(
         label="Start Index",
@@ -392,7 +393,7 @@ class SearchQuery:
         return selected
 
 
-    def get_request_body(self):
+    def get_request_body(self, row_limit, start_row):
         body = {}
 
         start_date, end_date = self.get_date_range()
@@ -401,37 +402,34 @@ class SearchQuery:
         body["startDate"] = start_date.isoformat()
         body["endDate"] = end_date.isoformat()
         body["dimensions"] = self.get_selected_dimensions()
-        body["rowLimit"] = self.row.limit
-        body["startRow"] = self.row.start
+        body["rowLimit"] = row_limit
+        body["startRow"] = start_row
         body["dataState"] = self.advanced.data_state
         body["aggregationType"] = self.advanced.aggregation
 
         return body
 
 
-    def convert_response_to_table(self, api_response):
+    def parse_response(self, api_response):
         dimensions = self.get_selected_dimensions()
-        newRows = []
+        new_rows = []
 
         if "rows" not in api_response:
-            api_response["rows"] = []
+            return new_rows
 
         for row in api_response["rows"]:
-            newRow = {}
+            new_row = {}
 
             for i, dim in enumerate(dimensions):
-                newRow[dim] = row["keys"][i]
+                new_row[dim] = row["keys"][i]
 
-            newRow.update(copy.deepcopy(row))
-            if "keys" in newRow:
-                del newRow["keys"]
+            new_row.update(copy.deepcopy(row))
+            if "keys" in new_row:
+                del new_row["keys"]
             
-            newRows.append(newRow)
+            new_rows.append(new_row)
 
-        return knext.Table.from_pandas(
-            data=pandas.DataFrame(data=newRows),
-            row_ids="auto"
-        )
+        return new_rows
     
     def create_credentials(self, credentials_json):
         info = json.loads(credentials_json)
@@ -448,6 +446,17 @@ class SearchQuery:
             info["refresh_token"] = ""
 
         return Credentials.from_authorized_user_info(info=info)
+    
+    def get_api_request_delay(self, i):
+        max_delay = 1
+        weight = 0.1
+
+        delay = i * weight
+
+        if max_delay < delay:
+            delay = max_delay
+
+        return delay
 
 
     def configure(self, config_context, auth_port_spec):
@@ -464,11 +473,34 @@ class SearchQuery:
             credentials=self.create_credentials(auth_port_object.get_credentials())
         )
 
-        api_response = service.searchanalytics().query(
-            siteUrl=self.property_type.property,
-            body=self.get_request_body()
-        ).execute()
+        api_row_limit = 25000
+        rows = []
+
+        i = 0
+        while True:
+            start_row = self.row.start + (i * api_row_limit)
+
+            api_response = service.searchanalytics().query(
+                siteUrl=self.property_type.property,
+                body=self.get_request_body(row_limit=api_row_limit, start_row=start_row)
+            ).execute()
+
+            new_rows = self.parse_response(api_response)
+            rows += new_rows
+
+            if self.row.limit != 0 and self.row.limit <= len(rows):
+                rows = rows[:self.row.limit]
+                break
+
+            if len(new_rows) < api_row_limit:
+                break
+
+            i += 1
+            time.sleep(self.get_api_request_delay(i))
 
         service.close()
 
-        return self.convert_response_to_table(api_response)
+        return knext.Table.from_pandas(
+            data=pandas.DataFrame(data=rows),
+            row_ids="auto"
+        )
