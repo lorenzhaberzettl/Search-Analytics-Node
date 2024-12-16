@@ -277,7 +277,6 @@ class DateRangeParameterGroup:
         condition=knext.OneOf(subject=interval, values=[IntervalOptions.custom.name]),
         effect=knext.Effect.SHOW
     )
-    
 
 
 @knext.parameter_group(label="Group By Dimension")
@@ -288,23 +287,6 @@ class DimensionParameterGroup:
     page = knext.BoolParameter(label="Page", description="Break down the results by page.", default_value=False)
     query = knext.BoolParameter(label="Query", description="Break down the results by query.", default_value=False)
     search_appearance = knext.BoolParameter(label="Search Appearance", description="Break down the results by search appearance.", default_value=False)
-
-
-@knext.parameter_group(label="Row Selection")
-class RowParameterGroup:
-    limit = knext.IntParameter(
-        label="Limit",
-        description="Specify how many rows should be returned at most.",
-        default_value=100000,
-        min_value=1,
-        max_value=100000
-    )
-    start = knext.IntParameter(
-        label="Start Index",
-        description="Specify the start row index. All rows with smaller indices will not be included.",
-        default_value=0,
-        min_value=0
-    )
 
 
 @knext.parameter_group(label="Advanced", is_advanced=True)
@@ -337,6 +319,15 @@ class AdvancedParameterGroup:
     )
 
 
+    row_limit = knext.IntParameter(
+        label="Row Limit",
+        description="Specify how many rows should be returned at most.",
+        default_value=100000,
+        min_value=1,
+        max_value=100000
+    )
+
+
 @knext.node(name="Search Analytics - Query", node_type=knext.NodeType.SOURCE, icon_path="query.png", category="/", keywords=KNIME_NODE_KEYWORDS)
 @knext.input_port(name="Search Analytics Auth Port", description="", port_type=search_auth_port_type)
 @knext.output_table(name="Result Table", description="")
@@ -349,7 +340,6 @@ class SearchQuery:
     property_type = PropertyTypeParameterGroup()
     date_range = DateRangeParameterGroup()
     dimension = DimensionParameterGroup()
-    row = RowParameterGroup()
     advanced = AdvancedParameterGroup()
 
     
@@ -478,7 +468,7 @@ class SearchQuery:
 
         i = 0
         while True:
-            start_row = self.row.start + (i * api_row_limit)
+            start_row = i * api_row_limit
 
             api_response = service.searchanalytics().query(
                 siteUrl=self.property_type.property,
@@ -488,8 +478,8 @@ class SearchQuery:
             new_rows = self.parse_response(api_response)
             rows += new_rows
 
-            if self.row.limit != 0 and self.row.limit <= len(rows):
-                rows = rows[:self.row.limit]
+            if self.advanced.row_limit != 0 and self.advanced.row_limit <= len(rows):
+                rows = rows[:self.advanced.row_limit]
                 break
 
             if len(new_rows) < api_row_limit:
