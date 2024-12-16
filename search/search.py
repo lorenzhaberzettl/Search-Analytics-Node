@@ -114,7 +114,7 @@ class SearchAuthenticator:
 
     expiration = knext.EnumParameter(
         label="Authentication Expiration Time",
-        description="Specifies when your Google account authentication expires. After expiration, you must re-authenticate by executing the node again.",
+        description="Specifies when your Google account authentication expires. After expiration, you must re-authenticate by executing the node again.\n\n**Heads up! Your authentication details are saved in your workflow. If you share a workflow with an executed Authenticator node, anyone who has access to the workflow can use it to run queries on your Google Search Console properties.**",
         default_value=ExpirationOptions.one_hour.name,
         enum=ExpirationOptions,
         style=knext.EnumParameter.Style.DROPDOWN
@@ -173,7 +173,7 @@ class SearchAuthenticator:
             host="127.0.0.1",
             port=self.get_free_port(),
             authorization_prompt_message=None,
-            success_message="Authorized successfully.\n\nRevoke access of this application to your Google Account anytime at https://myaccount.google.com/connections\n\nYou can close this window now.",
+            success_message="Authorized successfully.\n\nRevoke access of this application to your Google Account anytime at https://myaccount.google.com/connections\n\nHeads up! Your authentication details are saved in your workflow. If you share a workflow with an executed Authenticator node, anyone who has access to the workflow can use it to run queries on your Google Search Console properties.\n\nYou can close this window now.",
             open_browser=True,
             timeout_seconds=None
         )
