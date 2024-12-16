@@ -7,7 +7,7 @@ This KNIME extension imports data from the Google Search Console and consists of
 
 ## Features
 
-- Up to 25,000 rows per query
+- Up to 100,000 rows per query
 - Group by page, country, device, query, and search appearance
 - Group by several dimensions at once
 - Get fresh and final data
