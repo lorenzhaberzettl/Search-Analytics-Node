@@ -470,6 +470,8 @@ class SearchQuery:
         while True:
             start_row = i * api_row_limit
 
+            exec_context.set_progress(start_row / self.advanced.row_limit)
+
             api_response = service.searchanalytics().query(
                 siteUrl=self.property_type.property,
                 body=self.get_request_body(row_limit=api_row_limit, start_row=start_row)
