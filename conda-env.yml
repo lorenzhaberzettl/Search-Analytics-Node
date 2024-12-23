@@ -4,9 +4,9 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - knime-extension=5.3
-  - knime-python-base=5.3
+  - knime-extension=5.4
+  - knime-python-base=5.4
   - python=3.11
   - pip:
-      - google-api-python-client==2.155.0
+      - google-api-python-client==2.156.0
       - google-auth-oauthlib==1.2.1
