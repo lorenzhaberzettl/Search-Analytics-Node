@@ -17,19 +17,22 @@
 
 
 import logging
-import json
 import pickle
 import copy
 import pandas
 import socket
 import time
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from random import randint
 
 import knime.extension as knext
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.oauth2.credentials import Credentials
+
+import lib.api_request_delay
+import lib.credentials
+import lib.property_parameter
 
 
 OAUTH_CLIENT_CONFIG = {
@@ -192,32 +195,7 @@ class SearchAuthenticator:
 
 @knext.parameter_group(label="Property and Type")
 class PropertyTypeParameterGroup:
-    def getPropertySchema(dialog_creation_context):
-        availableProps = []
-        if "available_props" in dialog_creation_context.flow_variables:
-            availableProps = dialog_creation_context.flow_variables.get("available_props")
-
-        columns = []
-        for prop in availableProps:
-            # According to the function signature of knext.Column(), the metadata parameter is optional.
-            # However, when setting it to None or an empty dict, an error gets written to the log file
-            # which states the keys preferred_value_type and displayed_column_type are missing.
-            # Therefore these keys are specified with empty values.
-            columns.append(
-                knext.Column(
-                    ktype=knext.string(),
-                    name=prop,
-                    metadata={"preferred_value_type" : "", "displayed_column_type": ""}
-                )
-            )
-        
-        return knext.Schema.from_columns(columns=columns)
-
-    property = knext.ColumnParameter(
-        label="Property",
-        description="Select one of your verified properties. Requires the Search Analytics Authenticator node to be connected and executed.",
-        schema_provider=getPropertySchema
-    )
+    property = lib.property_parameter.create()
 
 
     class TypeOptions(knext.EnumParameterOptions):
@@ -420,33 +398,6 @@ class SearchQuery:
             new_rows.append(new_row)
 
         return new_rows
-    
-    def create_credentials(self, credentials_json):
-        info = json.loads(credentials_json)
-
-        if "refresh_token" not in info:
-            # Make sure the credentials have not expired.
-            time_expiry = datetime.fromisoformat(info["expiry"])
-            time_now = datetime.now(tz=timezone.utc)
-            if (time_expiry.timestamp() - time_now.timestamp()) <= 0:
-                raise PermissionError("Authentication expired. Please rerun the authenticator node.")
-            
-            # Credentials.from_authorized_user_info raises an error when the refresh_token key
-            # does not exist.
-            info["refresh_token"] = ""
-
-        return Credentials.from_authorized_user_info(info=info)
-    
-    def get_api_request_delay(self, i):
-        max_delay = 1
-        weight = 0.1
-
-        delay = i * weight
-
-        if max_delay < delay:
-            delay = max_delay
-
-        return delay
 
 
     def configure(self, config_context, auth_port_spec):
@@ -455,12 +406,12 @@ class SearchQuery:
 
     def execute(self, exec_context, auth_port_object):
         if self.property_type.property == None:
-            raise ValueError("No property selected!")
+            raise ValueError("No value for 'Property' parameter selected!")
         
         service = build(
             serviceName="searchconsole",
             version="v1",
-            credentials=self.create_credentials(auth_port_object.get_credentials())
+            credentials=lib.credentials.parse_json(auth_port_object.get_credentials())
         )
 
         api_row_limit = 25000
@@ -488,7 +439,7 @@ class SearchQuery:
                 break
 
             i += 1
-            time.sleep(self.get_api_request_delay(i))
+            time.sleep(lib.api_request_delay.get(i))
 
         service.close()
 
