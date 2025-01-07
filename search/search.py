@@ -1,5 +1,5 @@
 # Copyright 2024 Vitus Haberzettl
-# Copyright 2024 Lorenz Haberzettl
+# Copyright 2024, 2025 Lorenz Haberzettl
 #
 #
 # This file is part of Search Analytics Node.
