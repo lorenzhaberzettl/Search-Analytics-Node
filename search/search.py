@@ -447,3 +447,185 @@ class SearchQuery:
             data=pandas.DataFrame(data=rows),
             row_ids="auto"
         )
+
+
+@knext.parameter_group(label="Property and URL Column")
+class UrlInspectionPropertyInspectionUrlColumnParameterGroup:
+    property = lib.property_parameter.create()
+    inspection_url_column = knext.ColumnParameter(
+        label="Inspection URL Column",
+        description="",
+        port_index=1
+    )
+
+
+@knext.parameter_group(label="Modules")
+class UrlInspectionModulesParameterGroup:
+    index_status = knext.BoolParameter(label="Index Status", description="", default_value=True)
+    mobile_usability = knext.BoolParameter(label="Mobile Usability", description="", default_value=False)
+    accelerated_mobile_pages = knext.BoolParameter(label="Accelerated Mobile Pages", description="", default_value=False)
+    rich_results = knext.BoolParameter(label="Rich Results", description="", default_value=False)
+
+
+@knext.parameter_group(label="Advanced", is_advanced=True)
+class UrlInspectionAdvancedParameterGroup:
+    add_web_link = knext.BoolParameter(label="Add Link to Google Search Console Website", description="", default_value=False)
+    json = knext.BoolParameter(label="Output Results as JSON", description="", default_value=False)
+
+
+@knext.node(name="Search Analytics - URL Inspection", node_type=knext.NodeType.SOURCE, icon_path="query.png", category="/", keywords=KNIME_NODE_KEYWORDS)
+@knext.input_port(name="Search Analytics Auth Port", description="", port_type=search_auth_port_type)
+@knext.input_table(name="Inspection URL", description="")
+@knext.output_table(name="Result Table", description="")
+class UrlInspection:
+    """TODO short
+    TODO long
+    """
+
+    property_inspection_url_column = UrlInspectionPropertyInspectionUrlColumnParameterGroup()
+    modules = UrlInspectionModulesParameterGroup()
+    advanced = UrlInspectionAdvancedParameterGroup()
+    
+
+    def configure(self, config_context, auth_port_spec, inspection_url_port_spec):
+        pass
+
+
+    def build_row(self, url, api_response):
+        row = {
+            "URL": url
+        }
+
+        if self.advanced.add_web_link == True:
+            row["Web Link"] = api_response.get("inspectionResult", {}).get("inspectionResultLink", "")
+
+        if self.modules.index_status == True:
+            row.update(self.get_index_status_columns(api_response))
+
+        if self.modules.mobile_usability == True:
+            row.update(self.get_mobile_usability_columns(api_response))
+
+        if self.modules.accelerated_mobile_pages == True:
+            row.update(self.get_accelerated_mobile_pages_columns(api_response))
+
+        if self.modules.rich_results == True:
+            row.update(self.get_rich_results_columns(api_response))
+        
+        return row
+    
+
+    def get_index_status_columns(self, api_response):
+        isr = api_response.get("inspectionResult", {}).get("indexStatusResult", {})
+        isr["referringUrls"] = isr.get("referringUrls", [])
+        isr["sitemap"] = isr.get("sitemap", [])
+
+        if self.advanced.json == True:
+            return {
+                "IS: JSON": isr
+            }
+
+        return {
+            "IS: Coverage State": isr.get("coverageState", ""),
+            "IS: Crawled As": isr.get("crawledAs", ""),
+            "IS: Google Canonical": isr.get("googleCanonical", ""),
+            "IS: Indexing State": isr.get("indexingState", ""),
+            "IS: Last Crawl Time": isr.get("lastCrawlTime", ""),
+            "IS: Page Fetch State": isr.get("pageFetchState", ""),
+            "IS: Referring URLs": "\n".join(isr["referringUrls"]),
+            "IS: robots.txt State": isr.get("robotsTxtState", ""),
+            "IS: Sitemaps": "\n".join(isr["sitemap"]),
+            "IS: User Canonical": isr.get("userCanonical", ""),
+            "IS: Verdict": isr.get("verdict", "")
+        }
+    
+
+    def get_mobile_usability_columns(self, api_response):
+        mur = api_response.get("inspectionResult", {}).get("mobileUsabilityResult", {})
+
+        if self.advanced.json == True:
+            return {
+                "MU: JSON": mur
+            }
+
+        issues = []
+        for i in mur.get("issues", []):
+            issues.append(
+                i.get("severity", "") + " " + i.get("issueType", "") + " " + i.get("message", ""))
+
+        return {
+            "MU: Issues": "\n".join(issues),
+            "MU: Verdict": mur.get("verdict", "")
+        }
+    
+
+    def get_accelerated_mobile_pages_columns(self, api_response):
+        ampr = api_response.get("inspectionResult", {}).get("ampResult", {})
+
+        if self.advanced.json == True:
+            return {
+                "AMP: JSON": ampr
+            }
+
+        issues = []
+        for i in ampr.get("issues", []):
+            issues.append(
+                i.get("severity", "") + " " + i.get("issueMessage", ""))
+
+        return {
+            "AMP: Index Status Verdict": ampr.get("ampIndexStatusVerdict", ""),
+            "AMP: URL": ampr.get("ampUrl", ""),
+            "AMP: Indexing State": ampr.get("indexingState", ""),
+            "AMP: Issues": "\n".join(issues),
+            "AMP: Last Crawl Time": ampr.get("lastCrawlTime", ""),
+            "AMP: Page Fetch State": ampr.get("pageFetchState", ""),
+            "AMP: robots.txt State": ampr.get("robotsTxtState", ""),
+            "AMP: Verdict": ampr.get("verdict", "")
+        }
+    
+
+    def get_rich_results_columns(self, api_response):
+        return {
+            "RR: JSON": api_response.get("inspectionResult", {}).get("richResultsResult", {})
+        }
+
+
+    def execute(self, exec_context, auth_port_object, inspection_url_port_object):
+        if self.property_inspection_url_column.property == None:
+            raise ValueError("No value for 'Property' parameter selected!")
+
+        inspection_url_column = self.property_inspection_url_column.inspection_url_column
+        if inspection_url_column == None:
+            raise ValueError("No value for 'Inspection URL Column' parameter selected!")
+        
+        service = build(
+            serviceName="searchconsole",
+            version="v1",
+            credentials=lib.credentials.parse_json(auth_port_object.get_credentials())
+        )
+
+        inspection_url_df = inspection_url_port_object[inspection_url_column].to_pandas()
+        inspection_url_series = inspection_url_df[inspection_url_column]
+        rows = []
+
+        i = 0
+        for url in inspection_url_series:
+            exec_context.set_progress(i / len(inspection_url_series))
+
+            api_response = service.urlInspection().index().inspect(
+                body={
+                    "siteUrl": self.property_inspection_url_column.property,
+                    "inspectionUrl": url
+                }
+            ).execute()
+
+            rows.append(self.build_row(url=url, api_response=api_response))
+
+            i += 1
+            time.sleep(lib.api_request_delay.get(i))
+
+        service.close()
+
+        return knext.Table.from_pandas(
+            data=pandas.DataFrame(data=rows),
+            row_ids="auto"
+        )
