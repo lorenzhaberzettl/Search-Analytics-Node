@@ -514,78 +514,118 @@ class UrlInspection:
         return row
     
 
+    # Google's API only includes those parameters in the response for which it returns values.
+    # We add defaults to ensure the JSON data contains these keys, even if they have no value set.
+    def ensure_keys(self, dict, none_keys, list_keys):
+        for k in none_keys:
+            dict[k] = dict.get(k, None)
+
+        for k in list_keys:
+            dict[k] = dict.get(k, [])
+
+        return dict
+    
+
     def get_index_status_columns(self, api_response):
         isr = api_response.get("inspectionResult", {}).get("indexStatusResult", {})
-        isr["referringUrls"] = isr.get("referringUrls", [])
-        isr["sitemap"] = isr.get("sitemap", [])
+        isr = self.ensure_keys(dict=isr, none_keys=["coverageState", "crawledAs", "googleCanonical",
+            "indexingState", "lastCrawlTime", "pageFetchState", "robotsTxtState", "userCanonical",
+            "verdict"], list_keys=["referringUrls", "sitemap"])
 
         if self.advanced.json == True:
             return {
                 "IS: JSON": isr
             }
+        
+        # Some columns get special handling in terms of formatting
+        referring_urls_column = None
+        if 0 < len(isr["referringUrls"]):
+            referring_urls_column = "\n".join(isr["referringUrls"])
+        sitemap_column = None
+        if 0 < len(isr["sitemap"]):
+            sitemap_column = "\n".join(isr["sitemap"])
 
         return {
-            "IS: Coverage State": isr.get("coverageState", ""),
-            "IS: Crawled As": isr.get("crawledAs", ""),
-            "IS: Google Canonical": isr.get("googleCanonical", ""),
-            "IS: Indexing State": isr.get("indexingState", ""),
-            "IS: Last Crawl Time": isr.get("lastCrawlTime", ""),
-            "IS: Page Fetch State": isr.get("pageFetchState", ""),
-            "IS: Referring URLs": "\n".join(isr["referringUrls"]),
-            "IS: robots.txt State": isr.get("robotsTxtState", ""),
-            "IS: Sitemaps": "\n".join(isr["sitemap"]),
-            "IS: User Canonical": isr.get("userCanonical", ""),
-            "IS: Verdict": isr.get("verdict", "")
+            "IS: Coverage State": isr["coverageState"],
+            "IS: Crawled As": isr["crawledAs"],
+            "IS: Google Canonical": isr["googleCanonical"],
+            "IS: Indexing State": isr["indexingState"],
+            "IS: Last Crawl Time": isr["lastCrawlTime"],
+            "IS: Page Fetch State": isr["pageFetchState"],
+            "IS: Referring URLs": referring_urls_column,
+            "IS: robots.txt State": isr["robotsTxtState"],
+            "IS: Sitemaps": sitemap_column,
+            "IS: User Canonical": isr["userCanonical"],
+            "IS: Verdict": isr["verdict"]
         }
     
 
     def get_mobile_usability_columns(self, api_response):
         mur = api_response.get("inspectionResult", {}).get("mobileUsabilityResult", {})
+        mur = self.ensure_keys(dict=mur, none_keys=["verdict"], list_keys=["issues"])
 
         if self.advanced.json == True:
             return {
                 "MU: JSON": mur
             }
 
-        issues = []
-        for i in mur.get("issues", []):
-            issues.append(
-                i.get("severity", "") + " " + i.get("issueType", "") + " " + i.get("message", ""))
+        # Some columns get special handling in terms of formatting
+        issues_column = None
+        if 0 < len(mur["issues"]):
+            issues = []
+            for i in mur["issues"]:
+                issues.append(
+                    i.get("severity", "MISSING_SEVERITY") + " " +
+                    i.get("issueType", "MISSING_TYPE") + " " +
+                    i.get("message", "MISSING_MESSAGE")
+                )
+            issues_column = "\n".join(issues)
 
         return {
-            "MU: Issues": "\n".join(issues),
-            "MU: Verdict": mur.get("verdict", "")
+            "MU: Issues": issues_column,
+            "MU: Verdict": mur["verdict"]
         }
     
 
     def get_accelerated_mobile_pages_columns(self, api_response):
         ampr = api_response.get("inspectionResult", {}).get("ampResult", {})
+        ampr = self.ensure_keys(dict=ampr, none_keys=["ampIndexStatusVerdict", "ampUrl",
+                                "indexingState", "lastCrawlTime", "pageFetchState",
+                                "robotsTxtState", "verdict"], list_keys=["issues"])
 
         if self.advanced.json == True:
             return {
                 "AMP: JSON": ampr
             }
 
-        issues = []
-        for i in ampr.get("issues", []):
-            issues.append(
-                i.get("severity", "") + " " + i.get("issueMessage", ""))
+        # Some columns get special handling in terms of formatting
+        issues_column = None
+        if 0 < len(ampr["issues"]):
+            issues = []
+            for i in ampr["issues"]:
+                issues.append(
+                    i.get("severity", "MISSING_SEVERITY") + " " +
+                    i.get("issueMessage", "MISSING_MESSAGE"))
+            issues_column = "\n".join(issues)
 
         return {
-            "AMP: Index Status Verdict": ampr.get("ampIndexStatusVerdict", ""),
-            "AMP: URL": ampr.get("ampUrl", ""),
-            "AMP: Indexing State": ampr.get("indexingState", ""),
-            "AMP: Issues": "\n".join(issues),
-            "AMP: Last Crawl Time": ampr.get("lastCrawlTime", ""),
-            "AMP: Page Fetch State": ampr.get("pageFetchState", ""),
-            "AMP: robots.txt State": ampr.get("robotsTxtState", ""),
-            "AMP: Verdict": ampr.get("verdict", "")
+            "AMP: Index Status Verdict": ampr["ampIndexStatusVerdict"],
+            "AMP: URL": ampr["ampUrl"],
+            "AMP: Indexing State": ampr["indexingState"],
+            "AMP: Issues": issues_column,
+            "AMP: Last Crawl Time": ampr["lastCrawlTime"],
+            "AMP: Page Fetch State": ampr["pageFetchState"],
+            "AMP: robots.txt State": ampr["robotsTxtState"],
+            "AMP: Verdict": ampr["verdict"]
         }
     
 
     def get_rich_results_columns(self, api_response):
+        rrr = api_response.get("inspectionResult", {}).get("richResultsResult", {})
+        rrr = self.ensure_keys(dict=rrr, none_keys=["verdict"], list_keys=["detectedItems"])
+
         return {
-            "RR: JSON": api_response.get("inspectionResult", {}).get("richResultsResult", {})
+            "RR: JSON": rrr
         }
 
 
