@@ -516,7 +516,7 @@ class UrlInspection:
 
     # Google's API only includes those parameters in the response for which it returns values.
     # We add defaults to ensure the JSON data contains these keys, even if they have no value set.
-    def ensure_keys(self, dict, none_keys, list_keys):
+    def ensure_keys(self, dict, none_keys=[], list_keys=[]):
         for k in none_keys:
             dict[k] = dict.get(k, None)
 
