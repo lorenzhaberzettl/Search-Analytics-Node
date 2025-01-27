@@ -310,8 +310,8 @@ class AdvancedParameterGroup:
 @knext.input_port(name="Search Analytics Auth Port", description="", port_type=search_auth_port_type)
 @knext.output_table(name="Result Table", description="")
 class SearchQuery:
-    """This node queries data from Google Search Console
-    Query data from Google Search Console. This node requires an Authenticator node to be connected and executed before use.
+    """Retrieve detailed search performance data from the Google Search Console API.
+    This node fetches data from the Google Search Console API. It returns information like search impressions, clicks, position, query string, and more. Before use, an Authenticator node must be connected and executed.
     """
 
 
@@ -449,38 +449,39 @@ class SearchQuery:
         )
 
 
-@knext.parameter_group(label="Property and URL Column")
+@knext.parameter_group(label="Property and URL Table Column")
 class UrlInspectionPropertyInspectionUrlColumnParameterGroup:
     property = lib.property_parameter.create()
     inspection_url_column = knext.ColumnParameter(
-        label="Inspection URL Column",
-        description="",
+        label="URL Table Column",
+        description="Select the column which contains the URLs you would like to inspect. You can only inspect the URLs of your verified properties.",
         port_index=1
     )
 
 
 @knext.parameter_group(label="Modules")
 class UrlInspectionModulesParameterGroup:
-    index_status = knext.BoolParameter(label="Index Status", description="", default_value=True)
-    mobile_usability = knext.BoolParameter(label="Mobile Usability", description="", default_value=False)
-    accelerated_mobile_pages = knext.BoolParameter(label="Accelerated Mobile Pages", description="", default_value=False)
-    rich_results = knext.BoolParameter(label="Rich Results", description="", default_value=False)
+    index_status = knext.BoolParameter(label="Index Status", description="Include the **Index Status (IS)** values in the output: Coverage State, Crawled As, Google Canonical, Indexing State, Last Crawl Time, Page Fetch State, Referring URLs, robots.txt State, Sitemaps, User Canonical, and Verdict.", default_value=True)
+    mobile_usability = knext.BoolParameter(label="Mobile Usability", description="Include the **Mobile Usability (MU)** values in the output: Issues and Verdict.", default_value=False)
+    accelerated_mobile_pages = knext.BoolParameter(label="Accelerated Mobile Pages", description="Include the **Accelerated Mobile Pages (AMP)** values in the output: Index Status Verdict, URL, Indexing State, Issues, Last Crawl Time, Page Fetch State, robots.txt State, and Verdict.", default_value=False)
+    rich_results = knext.BoolParameter(label="Rich Results", description="Include the **Rich Results (RR)** values in the output. Since the RR data is nested, it is always provided in JSON format. The 'Output Results as JSON' setting does not affect this behavior.", default_value=False)
 
 
 @knext.parameter_group(label="Advanced", is_advanced=True)
 class UrlInspectionAdvancedParameterGroup:
-    add_web_link = knext.BoolParameter(label="Add Link to Google Search Console Website", description="", default_value=False)
-    json = knext.BoolParameter(label="Output Results as JSON", description="", default_value=False)
+    add_web_link = knext.BoolParameter(label="Add Link to Google Search Console Website", description="Include a link to the Google Search Console Website in the output to view the results directly in your browser.", default_value=False)
+    json = knext.BoolParameter(label="Output Results as JSON", description="Output the results as JSON instead of splitting them into separate table columns. Rich Result values are always returned as JSON, regardless of this setting.", default_value=False)
 
 
 @knext.node(name="Search Analytics - URL Inspection", node_type=knext.NodeType.SOURCE, icon_path="query.png", category="/", keywords=KNIME_NODE_KEYWORDS)
 @knext.input_port(name="Search Analytics Auth Port", description="", port_type=search_auth_port_type)
-@knext.input_table(name="Inspection URL", description="")
+@knext.input_table(name="URL Table", description="")
 @knext.output_table(name="Result Table", description="")
 class UrlInspection:
-    """TODO short
-    TODO long
+    """Retrieve detailed indexing information and issues from the Google Search Console URL Inspection API.
+    This node fetches data from the URL Inspection API, which is part of the Google Search Console. It returns information on the Index Status, Mobile Usability, Accelerated Mobile Pages, and Rich Results. Before use, an Authenticator node must be connected and executed.
     """
+
 
     property_inspection_url_column = UrlInspectionPropertyInspectionUrlColumnParameterGroup()
     modules = UrlInspectionModulesParameterGroup()
