@@ -1,5 +1,5 @@
 # Copyright 2024 Vitus Haberzettl
-# Copyright 2024 Lorenz Haberzettl
+# Copyright 2024, 2025 Lorenz Haberzettl
 #
 #
 # This file is part of Search Analytics Node.
@@ -17,19 +17,22 @@
 
 
 import logging
-import json
 import pickle
 import copy
 import pandas
 import socket
 import time
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from random import randint
 
 import knime.extension as knext
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.oauth2.credentials import Credentials
+
+import lib.api_request_delay
+import lib.credentials
+import lib.property_parameter
 
 
 OAUTH_CLIENT_CONFIG = {
@@ -192,32 +195,7 @@ class SearchAuthenticator:
 
 @knext.parameter_group(label="Property and Type")
 class PropertyTypeParameterGroup:
-    def getPropertySchema(dialog_creation_context):
-        availableProps = []
-        if "available_props" in dialog_creation_context.flow_variables:
-            availableProps = dialog_creation_context.flow_variables.get("available_props")
-
-        columns = []
-        for prop in availableProps:
-            # According to the function signature of knext.Column(), the metadata parameter is optional.
-            # However, when setting it to None or an empty dict, an error gets written to the log file
-            # which states the keys preferred_value_type and displayed_column_type are missing.
-            # Therefore these keys are specified with empty values.
-            columns.append(
-                knext.Column(
-                    ktype=knext.string(),
-                    name=prop,
-                    metadata={"preferred_value_type" : "", "displayed_column_type": ""}
-                )
-            )
-        
-        return knext.Schema.from_columns(columns=columns)
-
-    property = knext.ColumnParameter(
-        label="Property",
-        description="Select one of your verified properties. Requires the Search Analytics Authenticator node to be connected and executed.",
-        schema_provider=getPropertySchema
-    )
+    property = lib.property_parameter.create()
 
 
     class TypeOptions(knext.EnumParameterOptions):
@@ -332,8 +310,8 @@ class AdvancedParameterGroup:
 @knext.input_port(name="Search Analytics Auth Port", description="", port_type=search_auth_port_type)
 @knext.output_table(name="Result Table", description="")
 class SearchQuery:
-    """This node queries data from Google Search Console
-    Query data from Google Search Console. This node requires an Authenticator node to be connected and executed before use.
+    """Retrieve detailed search performance data from the Google Search Console API.
+    This node fetches data from the Google Search Console API. It returns information like search impressions, clicks, position, query string, and more. Before use, an Authenticator node must be connected and executed.
     """
 
 
@@ -420,33 +398,6 @@ class SearchQuery:
             new_rows.append(new_row)
 
         return new_rows
-    
-    def create_credentials(self, credentials_json):
-        info = json.loads(credentials_json)
-
-        if "refresh_token" not in info:
-            # Make sure the credentials have not expired.
-            time_expiry = datetime.fromisoformat(info["expiry"])
-            time_now = datetime.now(tz=timezone.utc)
-            if (time_expiry.timestamp() - time_now.timestamp()) <= 0:
-                raise PermissionError("Authentication expired. Please rerun the authenticator node.")
-            
-            # Credentials.from_authorized_user_info raises an error when the refresh_token key
-            # does not exist.
-            info["refresh_token"] = ""
-
-        return Credentials.from_authorized_user_info(info=info)
-    
-    def get_api_request_delay(self, i):
-        max_delay = 1
-        weight = 0.1
-
-        delay = i * weight
-
-        if max_delay < delay:
-            delay = max_delay
-
-        return delay
 
 
     def configure(self, config_context, auth_port_spec):
@@ -455,12 +406,12 @@ class SearchQuery:
 
     def execute(self, exec_context, auth_port_object):
         if self.property_type.property == None:
-            raise ValueError("No property selected!")
+            raise ValueError("No value for 'Property' parameter selected!")
         
         service = build(
             serviceName="searchconsole",
             version="v1",
-            credentials=self.create_credentials(auth_port_object.get_credentials())
+            credentials=lib.credentials.parse_json(auth_port_object.get_credentials())
         )
 
         api_row_limit = 25000
@@ -488,7 +439,230 @@ class SearchQuery:
                 break
 
             i += 1
-            time.sleep(self.get_api_request_delay(i))
+            time.sleep(lib.api_request_delay.get(i))
+
+        service.close()
+
+        return knext.Table.from_pandas(
+            data=pandas.DataFrame(data=rows),
+            row_ids="auto"
+        )
+
+
+@knext.parameter_group(label="Property and URL Table Column")
+class UrlInspectionPropertyInspectionUrlColumnParameterGroup:
+    property = lib.property_parameter.create()
+    inspection_url_column = knext.ColumnParameter(
+        label="URL Table Column",
+        description="Select the column which contains the URLs you would like to inspect. You can only inspect the URLs of your verified properties.",
+        port_index=1
+    )
+
+
+@knext.parameter_group(label="Modules")
+class UrlInspectionModulesParameterGroup:
+    index_status = knext.BoolParameter(label="Index Status", description="Include the **Index Status (IS)** values in the output: Coverage State, Crawled As, Google Canonical, Indexing State, Last Crawl Time, Page Fetch State, Referring URLs, robots.txt State, Sitemaps, User Canonical, and Verdict.", default_value=True)
+    mobile_usability = knext.BoolParameter(label="Mobile Usability", description="Include the **Mobile Usability (MU)** values in the output: Issues and Verdict.", default_value=False)
+    accelerated_mobile_pages = knext.BoolParameter(label="Accelerated Mobile Pages", description="Include the **Accelerated Mobile Pages (AMP)** values in the output: Index Status Verdict, URL, Indexing State, Issues, Last Crawl Time, Page Fetch State, robots.txt State, and Verdict.", default_value=False)
+    rich_results = knext.BoolParameter(label="Rich Results", description="Include the **Rich Results (RR)** values in the output. Since the RR data is nested, it is always provided in JSON format. The 'Output Results as JSON' setting does not affect this behavior.", default_value=False)
+
+
+@knext.parameter_group(label="Advanced", is_advanced=True)
+class UrlInspectionAdvancedParameterGroup:
+    add_web_link = knext.BoolParameter(label="Add Link to Google Search Console Website", description="Include a link to the Google Search Console Website in the output to view the results directly in your browser.", default_value=False)
+    json = knext.BoolParameter(label="Output Results as JSON", description="Output the results as JSON instead of splitting them into separate table columns. Rich Result values are always returned as JSON, regardless of this setting.", default_value=False)
+
+
+@knext.node(name="Search Analytics - URL Inspection", node_type=knext.NodeType.SOURCE, icon_path="url-inspection.png", category="/", keywords=KNIME_NODE_KEYWORDS)
+@knext.input_port(name="Search Analytics Auth Port", description="", port_type=search_auth_port_type)
+@knext.input_table(name="URL Table", description="")
+@knext.output_table(name="Result Table", description="")
+class UrlInspection:
+    """Retrieve detailed indexing information and issues from the Google Search Console URL Inspection API.
+    This node fetches data from the URL Inspection API, which is part of the Google Search Console. It returns information on the Index Status, Mobile Usability, Accelerated Mobile Pages, and Rich Results. Before use, an Authenticator node must be connected and executed.
+    """
+
+
+    property_inspection_url_column = UrlInspectionPropertyInspectionUrlColumnParameterGroup()
+    modules = UrlInspectionModulesParameterGroup()
+    advanced = UrlInspectionAdvancedParameterGroup()
+    
+
+    def configure(self, config_context, auth_port_spec, inspection_url_port_spec):
+        pass
+
+
+    def build_row(self, url, api_response):
+        row = {
+            "URL": url
+        }
+
+        if self.advanced.add_web_link == True:
+            row["Web Link"] = api_response.get("inspectionResult", {}).get("inspectionResultLink", "")
+
+        if self.modules.index_status == True:
+            row.update(self.get_index_status_columns(api_response))
+
+        if self.modules.mobile_usability == True:
+            row.update(self.get_mobile_usability_columns(api_response))
+
+        if self.modules.accelerated_mobile_pages == True:
+            row.update(self.get_accelerated_mobile_pages_columns(api_response))
+
+        if self.modules.rich_results == True:
+            row.update(self.get_rich_results_columns(api_response))
+        
+        return row
+    
+
+    # Google's API only includes those parameters in the response for which it returns values.
+    # We add defaults to ensure the JSON data contains these keys, even if they have no value set.
+    def ensure_keys(self, dict, none_keys=[], list_keys=[]):
+        for k in none_keys:
+            dict[k] = dict.get(k, None)
+
+        for k in list_keys:
+            dict[k] = dict.get(k, [])
+
+        return dict
+    
+
+    def get_index_status_columns(self, api_response):
+        isr = api_response.get("inspectionResult", {}).get("indexStatusResult", {})
+        isr = self.ensure_keys(dict=isr, none_keys=["coverageState", "crawledAs", "googleCanonical",
+            "indexingState", "lastCrawlTime", "pageFetchState", "robotsTxtState", "userCanonical",
+            "verdict"], list_keys=["referringUrls", "sitemap"])
+
+        if self.advanced.json == True:
+            return {
+                "IS: JSON": isr
+            }
+        
+        # Some columns get special handling in terms of formatting
+        referring_urls_column = None
+        if 0 < len(isr["referringUrls"]):
+            referring_urls_column = "\n".join(isr["referringUrls"])
+        sitemap_column = None
+        if 0 < len(isr["sitemap"]):
+            sitemap_column = "\n".join(isr["sitemap"])
+
+        return {
+            "IS: Coverage State": isr["coverageState"],
+            "IS: Crawled As": isr["crawledAs"],
+            "IS: Google Canonical": isr["googleCanonical"],
+            "IS: Indexing State": isr["indexingState"],
+            "IS: Last Crawl Time": isr["lastCrawlTime"],
+            "IS: Page Fetch State": isr["pageFetchState"],
+            "IS: Referring URLs": referring_urls_column,
+            "IS: robots.txt State": isr["robotsTxtState"],
+            "IS: Sitemaps": sitemap_column,
+            "IS: User Canonical": isr["userCanonical"],
+            "IS: Verdict": isr["verdict"]
+        }
+    
+
+    def get_mobile_usability_columns(self, api_response):
+        mur = api_response.get("inspectionResult", {}).get("mobileUsabilityResult", {})
+        mur = self.ensure_keys(dict=mur, none_keys=["verdict"], list_keys=["issues"])
+
+        if self.advanced.json == True:
+            return {
+                "MU: JSON": mur
+            }
+
+        # Some columns get special handling in terms of formatting
+        issues_column = None
+        if 0 < len(mur["issues"]):
+            issues = []
+            for i in mur["issues"]:
+                issues.append(
+                    i.get("severity", "MISSING_SEVERITY") + " " +
+                    i.get("issueType", "MISSING_TYPE") + " " +
+                    i.get("message", "MISSING_MESSAGE")
+                )
+            issues_column = "\n".join(issues)
+
+        return {
+            "MU: Issues": issues_column,
+            "MU: Verdict": mur["verdict"]
+        }
+    
+
+    def get_accelerated_mobile_pages_columns(self, api_response):
+        ampr = api_response.get("inspectionResult", {}).get("ampResult", {})
+        ampr = self.ensure_keys(dict=ampr, none_keys=["ampIndexStatusVerdict", "ampUrl",
+                                "indexingState", "lastCrawlTime", "pageFetchState",
+                                "robotsTxtState", "verdict"], list_keys=["issues"])
+
+        if self.advanced.json == True:
+            return {
+                "AMP: JSON": ampr
+            }
+
+        # Some columns get special handling in terms of formatting
+        issues_column = None
+        if 0 < len(ampr["issues"]):
+            issues = []
+            for i in ampr["issues"]:
+                issues.append(
+                    i.get("severity", "MISSING_SEVERITY") + " " +
+                    i.get("issueMessage", "MISSING_MESSAGE"))
+            issues_column = "\n".join(issues)
+
+        return {
+            "AMP: Index Status Verdict": ampr["ampIndexStatusVerdict"],
+            "AMP: URL": ampr["ampUrl"],
+            "AMP: Indexing State": ampr["indexingState"],
+            "AMP: Issues": issues_column,
+            "AMP: Last Crawl Time": ampr["lastCrawlTime"],
+            "AMP: Page Fetch State": ampr["pageFetchState"],
+            "AMP: robots.txt State": ampr["robotsTxtState"],
+            "AMP: Verdict": ampr["verdict"]
+        }
+    
+
+    def get_rich_results_columns(self, api_response):
+        rrr = api_response.get("inspectionResult", {}).get("richResultsResult", {})
+        rrr = self.ensure_keys(dict=rrr, none_keys=["verdict"], list_keys=["detectedItems"])
+
+        return {
+            "RR: JSON": rrr
+        }
+
+
+    def execute(self, exec_context, auth_port_object, inspection_url_port_object):
+        if self.property_inspection_url_column.property == None:
+            raise ValueError("No value for 'Property' parameter selected!")
+
+        inspection_url_column = self.property_inspection_url_column.inspection_url_column
+        if inspection_url_column == None:
+            raise ValueError("No value for 'Inspection URL Column' parameter selected!")
+        
+        service = build(
+            serviceName="searchconsole",
+            version="v1",
+            credentials=lib.credentials.parse_json(auth_port_object.get_credentials())
+        )
+
+        inspection_url_df = inspection_url_port_object[inspection_url_column].to_pandas()
+        inspection_url_series = inspection_url_df[inspection_url_column]
+        rows = []
+
+        i = 0
+        for url in inspection_url_series:
+            exec_context.set_progress(i / len(inspection_url_series))
+
+            api_response = service.urlInspection().index().inspect(
+                body={
+                    "siteUrl": self.property_inspection_url_column.property,
+                    "inspectionUrl": url
+                }
+            ).execute()
+
+            rows.append(self.build_row(url=url, api_response=api_response))
+
+            i += 1
+            time.sleep(lib.api_request_delay.get(i))
 
         service.close()
 
