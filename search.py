@@ -56,6 +56,15 @@ KNIME_NODE_KEYWORDS = [
 logger = logging.getLogger(__name__)
 
 
+category = knext.category(
+    path="/community",
+    level_id="san_ext",
+    name="Search Analytics Node",
+    description="Nodes to query your Search Console data",
+    icon="icons/query.png"
+)
+
+
 class SearchAuthPortSpec(knext.PortObjectSpec):
     def __init__(self, spec: str = "") -> None:
         super().__init__()
@@ -103,7 +112,7 @@ search_auth_port_type = knext.port_type(
 )
 
 
-@knext.node(name="Search Analytics - Authenticator", node_type=knext.NodeType.OTHER, icon_path="icons/authenticator.png", category="/", keywords=KNIME_NODE_KEYWORDS)
+@knext.node(name="Search Analytics - Authenticator", node_type=knext.NodeType.OTHER, icon_path="icons/authenticator.png", category=category, keywords=KNIME_NODE_KEYWORDS)
 @knext.output_port(name="Search Analytics Auth Port", description="", port_type=search_auth_port_type)
 class SearchAuthenticator:
     """This node allows you to authenticate yourself with Google.
@@ -306,7 +315,7 @@ class AdvancedParameterGroup:
     )
 
 
-@knext.node(name="Search Analytics - Query", node_type=knext.NodeType.SOURCE, icon_path="icons/query.png", category="/", keywords=KNIME_NODE_KEYWORDS)
+@knext.node(name="Search Analytics - Query", node_type=knext.NodeType.SOURCE, icon_path="icons/query.png", category=category, keywords=KNIME_NODE_KEYWORDS)
 @knext.input_port(name="Search Analytics Auth Port", description="", port_type=search_auth_port_type)
 @knext.output_table(name="Result Table", description="")
 class SearchQuery:
@@ -473,7 +482,7 @@ class UrlInspectionAdvancedParameterGroup:
     json = knext.BoolParameter(label="Output Results as JSON", description="Output the results as JSON instead of splitting them into separate table columns. Rich Result values are always returned as JSON, regardless of this setting.", default_value=False)
 
 
-@knext.node(name="Search Analytics - URL Inspection", node_type=knext.NodeType.SOURCE, icon_path="icons/url-inspection.png", category="/", keywords=KNIME_NODE_KEYWORDS)
+@knext.node(name="Search Analytics - URL Inspection", node_type=knext.NodeType.SOURCE, icon_path="icons/url-inspection.png", category=category, keywords=KNIME_NODE_KEYWORDS)
 @knext.input_port(name="Search Analytics Auth Port", description="", port_type=search_auth_port_type)
 @knext.input_table(name="URL Table", description="")
 @knext.output_table(name="Result Table", description="")
