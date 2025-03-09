@@ -20,32 +20,16 @@ import logging
 import pickle
 import copy
 import pandas
-import socket
 import time
 from datetime import datetime, timedelta, timezone
-from random import randint
 
 import knime.extension as knext
 from googleapiclient.discovery import build
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.oauth2.credentials import Credentials
 
 import lib.api_request_delay
 import lib.credentials
 import lib.property_parameter
 
-
-OAUTH_CLIENT_CONFIG = {
-    "installed": {
-        "client_id": "",
-        "project_id": "",
-        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-        "token_uri": "https://oauth2.googleapis.com/token",
-        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-        "client_secret": ""
-    }
-}
-GOOGLE_API_SCOPES = ["https://www.googleapis.com/auth/webmasters.readonly"]
 
 KNIME_NODE_KEYWORDS = [
     "Google Search Console",
@@ -135,24 +119,6 @@ class SearchAuthenticator:
 
     def configure(self, config_context):
         return SearchAuthPortSpec()
-    
-
-    def get_free_port(self):
-        for i in range(0, 100):
-            port = randint(10000, 30000)
-            if self.is_port_free(port=port) == True:
-                return port
-        
-        raise RuntimeError("Can not find free port on loopback interface.")
-
-
-    def is_port_free(self, port):
-        with socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM) as s:
-            try:
-                s.bind(("127.0.0.1", port))
-                return True
-            except OSError:
-                return False
 
 
     def set_available_props(self, exec_context, credentials):
@@ -176,19 +142,7 @@ class SearchAuthenticator:
 
 
     def execute(self, exec_context):
-        flow = InstalledAppFlow.from_client_config(
-            client_config=OAUTH_CLIENT_CONFIG,
-            scopes=GOOGLE_API_SCOPES
-        )
-
-        credentials = flow.run_local_server(
-            host="127.0.0.1",
-            port=self.get_free_port(),
-            authorization_prompt_message=None,
-            success_message="Authorized successfully.\n\nRevoke access of this application to your Google Account anytime at https://myaccount.google.com/connections\n\nHeads up! Your authentication details are saved in your workflow. If you share a workflow with an executed Authenticator node, anyone who has access to the workflow can use it to run queries on your Google Search Console properties.\n\nYou can close this window now.",
-            open_browser=True,
-            timeout_seconds=None
-        )
+        credentials = lib.credentials.create_new(exec_context=exec_context)
 
         self.set_available_props(exec_context=exec_context, credentials=credentials)
 
