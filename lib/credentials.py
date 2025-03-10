@@ -75,26 +75,26 @@ def create_new(exec_context):
 
     queue = Queue()
 
-    childProcess = Process(
+    child_process = Process(
         target=_run_local_server, kwargs={"queue": queue, "flow": flow}
     )
-    childProcess.start()
+    child_process.start()
 
     while True:
         if exec_context.is_canceled() == True:
-            if childProcess.pid is not None:
-                lib.process.terminate_tree(childProcess.pid)
+            if child_process.pid is not None:
+                lib.process.terminate_tree(child_process.pid)
             raise RuntimeError("Execution was canceled.")
 
-        if childProcess.is_alive() == False:
+        if child_process.is_alive() == False:
             break
 
         time.sleep(0.5)
 
-    childProcess.join()
-    if childProcess.exitcode != 0:
+    child_process.join()
+    if child_process.exitcode != 0:
         raise RuntimeError(
-            "Subprocess exit code was non zero: " + str(childProcess.exitcode)
+            "Subprocess exit code was non zero: " + str(child_process.exitcode)
         )
 
     return parse_json(queue.get(block=False))
