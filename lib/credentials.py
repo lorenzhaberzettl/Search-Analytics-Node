@@ -69,14 +69,15 @@ def parse_json(credentials_json):
 
 
 def create_new(exec_context):
-    flow = InstalledAppFlow.from_client_config(
-        client_config=OAUTH_CLIENT_CONFIG, scopes=GOOGLE_API_SCOPES
-    )
-
     queue = Queue()
 
     child_process = Process(
-        target=_run_local_server, kwargs={"queue": queue, "flow": flow}
+        target=_run_local_server,
+        kwargs={
+            "queue": queue,
+            "client_config": OAUTH_CLIENT_CONFIG,
+            "scopes": GOOGLE_API_SCOPES,
+        },
     )
     child_process.start()
 
@@ -100,8 +101,11 @@ def create_new(exec_context):
     return parse_json(queue.get(block=False))
 
 
-def _run_local_server(queue, flow):
+def _run_local_server(queue, client_config, scopes):
     try:
+        flow = InstalledAppFlow.from_client_config(
+            client_config=client_config, scopes=scopes
+        )
         credentials = flow.run_local_server(
             host="127.0.0.1",
             port=_get_free_port(),
