@@ -7,6 +7,6 @@ dependencies:
   - knime-python-base
   - python=3.11
   - pip:
-      - google-api-python-client==2.163.0
-      - google-auth-oauthlib==1.2.1
+      - google-api-python-client==2.169.0
+      - google-auth-oauthlib==1.2.2
       - psutil==7.0.0
