@@ -28,6 +28,7 @@ from googleapiclient.discovery import build
 
 import lib.api_request_delay
 import lib.credentials
+import lib.key_management
 import lib.property_parameter
 
 
@@ -71,22 +72,27 @@ class SearchAuthPortSpec(knext.PortObjectSpec):
 
 
 class SearchAuthPortObject(knext.PortObject):
-    def __init__(self, spec: SearchAuthPortSpec, credentials) -> None:
+    def __init__(self, spec: SearchAuthPortSpec, credentials, is_pro) -> None:
         super().__init__(spec)
         self._credentials = credentials
+        self._is_pro = is_pro
 
 
     def serialize(self) -> bytes:
-        return pickle.dumps(self._credentials)
+        return pickle.dumps((self._credentials, self._is_pro))
 
 
     @classmethod
     def deserialize(cls, spec: SearchAuthPortSpec, storage: bytes) -> "SearchAuthPortSpec":
-        return cls(spec, pickle.loads(storage))
+        credentials, is_pro = pickle.loads(storage)
+        return cls(spec, credentials, is_pro)
 
 
     def get_credentials(self):
         return self._credentials
+    
+    def get_is_pro(self):
+        return self._is_pro
 
 
 search_auth_port_type = knext.port_type(
@@ -114,6 +120,14 @@ class SearchAuthenticator:
         default_value=ExpirationOptions.one_hour.name,
         enum=ExpirationOptions,
         style=knext.EnumParameter.Style.DROPDOWN
+    )
+
+
+    key = knext.StringParameter(
+        label="License Key (Optional)",
+        description="TODO",
+        default_value="",
+        since_version="1.7.0"
     )
 
 
@@ -148,6 +162,10 @@ class SearchAuthenticator:
 
 
     def execute(self, exec_context):
+        is_pro = False
+        if len(self.key) != 0:
+            is_pro = lib.key_management.is_valid(key=self.key)
+        
         credentials = lib.credentials.create_new(exec_context=exec_context)
 
         self.set_available_props(exec_context=exec_context, credentials=credentials)
@@ -158,7 +176,8 @@ class SearchAuthenticator:
 
         return SearchAuthPortObject(
             spec=SearchAuthPortSpec(),
-            credentials=credentials.to_json(strip=strip_keys)
+            credentials=credentials.to_json(strip=strip_keys),
+            is_pro=is_pro
         )
 
 
@@ -268,10 +287,10 @@ class AdvancedParameterGroup:
 
     row_limit = knext.IntParameter(
         label="Row Limit",
-        description="Specify how many rows should be returned at most.",
-        default_value=100000,
-        min_value=1,
-        max_value=100000
+        description="Set the maximum number of rows to return. **Use 0 to remove the limit** and fetch all available data.",
+        default_value=0,
+        min_value=0,
+        max_value=100000000000000
     )
 
 
@@ -384,13 +403,19 @@ class SearchQuery:
         )
 
         api_row_limit = 25000
+        user_row_limit = self.advanced.row_limit
         rows = []
+
+        if auth_port_object.get_is_pro() != True and (user_row_limit == 0 or user_row_limit > 100000):
+            user_row_limit = 100000
+            exec_context.set_warning("Results are limited to 100,000 rows unless you provide a valid license key in the Authenticator node. Without one, we'll automatically cap the output at 100,000 rows.")
 
         i = 0
         while True:
             start_row = i * api_row_limit
 
-            exec_context.set_progress(start_row / self.advanced.row_limit)
+            if user_row_limit != 0:
+                exec_context.set_progress(start_row / user_row_limit)
 
             api_response = service.searchanalytics().query(
                 siteUrl=self.property_type.property,
@@ -400,8 +425,8 @@ class SearchQuery:
             new_rows = self.parse_response(api_response)
             rows += new_rows
 
-            if self.advanced.row_limit != 0 and self.advanced.row_limit <= len(rows):
-                rows = rows[:self.advanced.row_limit]
+            if user_row_limit != 0 and user_row_limit <= len(rows):
+                rows = rows[:user_row_limit]
                 break
 
             if len(new_rows) < api_row_limit:
