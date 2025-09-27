@@ -51,24 +51,13 @@ category = knext.category(
 
 
 class SearchAuthPortSpec(knext.PortObjectSpec):
-    def __init__(self, spec: str = "") -> None:
-        super().__init__()
-        self._spec = spec
-
-
-    def serialize(self) -> dict:
-        return {
-            "spec": self._spec
-        }
-
+    def serialize(self):
+        pass
 
     @classmethod
-    def deserialize(cls, data: dict) -> "SearchAuthPortSpec":
-        cls(data["spec"])
+    def deserialize(cls, data: dict):
+        pass
 
-
-    def get_spec(self):
-        return self._spec
 
 
 class SearchAuthPortObject(knext.PortObject):
@@ -83,7 +72,7 @@ class SearchAuthPortObject(knext.PortObject):
 
 
     @classmethod
-    def deserialize(cls, spec: SearchAuthPortSpec, storage: bytes) -> "SearchAuthPortSpec":
+    def deserialize(cls, spec: SearchAuthPortSpec, storage: bytes) -> "SearchAuthPortObject":
         credentials, is_pro = pickle.loads(storage)
         return cls(spec, credentials, is_pro)
 
