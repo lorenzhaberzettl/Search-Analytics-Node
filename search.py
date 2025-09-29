@@ -22,6 +22,8 @@ import copy
 import pandas
 import time
 from datetime import datetime, timedelta, timezone
+from concurrent.futures import ThreadPoolExecutor
+import itertools
 
 import knime.extension as knext
 from googleapiclient.discovery import build
@@ -612,6 +614,24 @@ class UrlInspection:
             "RR: JSON": rrr
         }
 
+    def inspect_one(self, url, property, credentials):
+        service = build(
+            serviceName="searchconsole",
+            version="v1",
+            credentials=credentials
+        )
+
+        api_response = service.urlInspection().index().inspect(
+                body={
+                    "siteUrl": property,
+                    "inspectionUrl": url
+                }
+            ).execute()
+        
+        service.close()
+        
+        return api_response
+
 
     def execute(self, exec_context, auth_port_object, inspection_url_port_object):
         if self.property_inspection_url_column.property == None:
@@ -621,33 +641,29 @@ class UrlInspection:
         if inspection_url_column == None:
             raise ValueError("No value for 'Inspection URL Column' parameter selected!")
         
-        service = build(
-            serviceName="searchconsole",
-            version="v1",
-            credentials=lib.credentials.parse_json(auth_port_object.get_credentials())
-        )
+        max_workers = 10
+        if auth_port_object.get_is_pro() != True:
+            max_workers = 1
+
+        credentials = lib.credentials.parse_json(auth_port_object.get_credentials())
 
         inspection_url_df = inspection_url_port_object[inspection_url_column].to_pandas()
         inspection_url_series = inspection_url_df[inspection_url_column]
         rows = []
 
-        i = 0
-        for url in inspection_url_series:
-            exec_context.set_progress(i / len(inspection_url_series))
-
-            api_response = service.urlInspection().index().inspect(
-                body={
-                    "siteUrl": self.property_inspection_url_column.property,
-                    "inspectionUrl": url
-                }
-            ).execute()
-
-            rows.append(self.build_row(url=url, api_response=api_response))
-
-            i += 1
-            time.sleep(lib.api_request_delay.get(i))
-
-        service.close()
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            for api_response in executor.map(
+                self.inspect_one,
+                inspection_url_series,
+                itertools.repeat(self.property_inspection_url_column.property),
+                itertools.repeat(credentials),
+            ):
+                rows.append(
+                    self.build_row(
+                        url=inspection_url_series[len(rows)], api_response=api_response
+                    )
+                )
+                exec_context.set_progress(len(rows) / len(inspection_url_series))
 
         return knext.Table.from_pandas(
             data=pandas.DataFrame(data=rows),
