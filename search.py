@@ -116,7 +116,7 @@ class SearchAuthenticator:
 
     key = knext.StringParameter(
         label="License Key (Optional)",
-        description="TODO",
+        description="Upgrade with a license key and supercharge your workflow:\n\n🔥 **Query node**: Remove the 100,000 row cap and access the complete dataset\n\n🔥 **URL Inspection node**: Up to 10x faster execution thanks to parallel processing",
         default_value="",
         since_version="1.7.0"
     )
