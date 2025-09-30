@@ -154,8 +154,8 @@ class SearchAuthenticator:
 
     def execute(self, exec_context):
         is_pro = False
-        if len(self.key) != 0:
-            is_pro = lib.key_management.is_valid(key=self.key)
+        if len(self.key.strip()) != 0:
+            is_pro = lib.key_management.verify_key(key=self.key.strip())
         
         credentials = lib.credentials.create_new(exec_context=exec_context)
 

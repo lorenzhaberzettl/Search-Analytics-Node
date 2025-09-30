@@ -22,17 +22,31 @@ import requests
 ENDPOINT_URL = "https://keycheck.searchanalyticsnode.com/"
 
 
-def is_valid(key):
+def verify_key(key):
     try:
         response = requests.get(ENDPOINT_URL, params={"key": key}, timeout=10)
+    except Exception:
+        raise RuntimeError(
+            "Can not reach the license server. Please check your internet connection and try again. If the problem persists, please let us know via email."
+        )
 
-        if response.status_code != 200:
-            return False
+    if response.status_code != 200:
+        raise RuntimeError(
+            "The license server responded unexpectedly (HTTP status code "
+            + str(response.status_code)
+            + "). If the problem persists, please let us know via email."
+        )
 
-        if response.json().ok != True:
-            return False
+    try:
+        json = response.json()
+    except requests.JSONDecodeError:
+        raise RuntimeError(
+            "The license server responded with invalid JSON. If the problem persists, please let us know via email."
+        )
 
-        return True
+    if json["ok"] != True:
+        raise RuntimeError(
+            "That license key does not appear to be valid. Double-check for typos and try again."
+        )
 
-    except Exception as e:
-        return False
+    return True
