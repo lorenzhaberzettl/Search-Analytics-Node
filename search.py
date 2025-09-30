@@ -399,7 +399,6 @@ class SearchQuery:
 
         if auth_port_object.get_is_pro() != True and (user_row_limit == 0 or user_row_limit > 100000):
             user_row_limit = 100000
-            exec_context.set_warning("Results are limited to 100,000 rows unless you provide a valid license key in the Authenticator node. Without one, we'll automatically cap the output at 100,000 rows.")
 
         i = 0
         while True:
@@ -427,6 +426,15 @@ class SearchQuery:
             time.sleep(lib.api_request_delay.get(i))
 
         service.close()
+
+        if (
+            auth_port_object.get_is_pro() != True
+            and len(rows) == 100000
+            and (self.advanced.row_limit == 0 or self.advanced.row_limit > 100000)
+        ):
+            exec_context.set_warning(
+                "You've reached the 100,000 row limit. Want more? Enter a valid license key in the Authenticator node to unlock the complete dataset."
+            )
 
         return knext.Table.from_pandas(
             data=pandas.DataFrame(data=rows),
