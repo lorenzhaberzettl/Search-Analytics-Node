@@ -666,11 +666,16 @@ class UrlInspection:
                 itertools.repeat(self.property_inspection_url_column.property),
                 itertools.repeat(credentials),
             ):
+                if exec_context.is_canceled() == True:
+                    executor.shutdown(wait=True, cancel_futures=True)
+                    raise RuntimeError("Execution was canceled.")
+                
                 rows.append(
                     self.build_row(
                         url=inspection_url_series[len(rows)], api_response=api_response
                     )
                 )
+
                 exec_context.set_progress(len(rows) / len(inspection_url_series))
 
         return knext.Table.from_pandas(
