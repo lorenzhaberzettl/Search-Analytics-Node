@@ -70,18 +70,48 @@ class SearchAuthPortObject(knext.PortObject):
 
 
     def serialize(self) -> bytes:
-        return pickle.dumps((self._credentials, self._is_pro))
+        payload = {
+            "port_version": 2,
+            "credentials": self._credentials,
+            "is_pro": self._is_pro
+        }
+        return pickle.dumps(payload)
 
 
     @classmethod
     def deserialize(cls, spec: SearchAuthPortSpec, storage: bytes) -> "SearchAuthPortObject":
-        credentials, is_pro = pickle.loads(storage)
+        payload = pickle.loads(storage)
+        if isinstance(payload, dict):
+            version = payload["port_version"]
+        else:
+            version = 1
+        
+        if version == 2:
+            # Version 2 payload structure:
+            # {
+            #   "port_version": 2,
+            #   "credentials": <str>,
+            #   "is_pro": <bool>
+            # }
+            credentials = payload["credentials"]
+            is_pro = payload["is_pro"]
+        elif version == 1:
+            # Version 1 (deprecated) payload structure:
+            # Only contains the credentials <str> without metadata.
+            credentials = payload
+            is_pro = False
+        else:
+            raise RuntimeError(
+                "Unknown Auth Port version! Reset and execute the Authenticator node again."
+            )
+
         return cls(spec, credentials, is_pro)
 
 
     def get_credentials(self):
         return self._credentials
-    
+
+
     def get_is_pro(self):
         return self._is_pro
 
