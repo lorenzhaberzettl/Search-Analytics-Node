@@ -46,7 +46,7 @@ def verify_key(key):
 
     if json["ok"] != True:
         raise RuntimeError(
-            "That license key does not appear to be valid. Double-check for typos and try again."
+            "That license key does not appear to be valid or may have expired. Double-check for typos, confirm the key is still active, and try again."
         )
 
     return True
