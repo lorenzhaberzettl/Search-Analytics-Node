@@ -116,7 +116,7 @@ class SearchAuthenticator:
 
     key = knext.StringParameter(
         label="License Key (Optional)",
-        description="Upgrade with a license key and supercharge your workflow:\n\n🔥 **Query node**: Remove the 100,000 row cap and access the complete dataset\n\n🔥 **URL Inspection node**: Up to 10x faster execution thanks to parallel processing",
+        description="Upgrade with a license key and supercharge your workflow:\n\n🔥 **Query node**: Remove the 100,000 row cap and fetch all available data\n\n🔥 **URL Inspection node**: Up to 10x faster execution thanks to parallel processing",
         default_value="",
         since_version="1.7.0"
     )
@@ -278,7 +278,7 @@ class AdvancedParameterGroup:
 
     row_limit = knext.IntParameter(
         label="Row Limit",
-        description="Set the maximum number of rows to return. **Use 0 to remove the limit** and fetch all available data.",
+        description="Set the maximum number of rows to return. **Use 0 to remove the limit** and fetch all available data.\n\n**Note:** Google may still impose restrictions based on query complexity, meaning very large or complex requests might take a long time or could result in a server error. Simplifying the query (e.g., shorter date ranges or fewer dimensions) can help improve speed and reliability.",
         default_value=0,
         min_value=0,
         max_value=100000000000000
