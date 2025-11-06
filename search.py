@@ -22,12 +22,15 @@ import copy
 import pandas
 import time
 from datetime import datetime, timedelta, timezone
+from concurrent.futures import ThreadPoolExecutor
+import itertools
 
 import knime.extension as knext
 from googleapiclient.discovery import build
 
 import lib.api_request_delay
 import lib.credentials
+import lib.key_management
 import lib.property_parameter
 
 
@@ -50,43 +53,67 @@ category = knext.category(
 
 
 class SearchAuthPortSpec(knext.PortObjectSpec):
-    def __init__(self, spec: str = "") -> None:
-        super().__init__()
-        self._spec = spec
-
-
-    def serialize(self) -> dict:
-        return {
-            "spec": self._spec
-        }
-
+    def serialize(self):
+        pass
 
     @classmethod
-    def deserialize(cls, data: dict) -> "SearchAuthPortSpec":
-        cls(data["spec"])
+    def deserialize(cls, data: dict):
+        pass
 
-
-    def get_spec(self):
-        return self._spec
 
 
 class SearchAuthPortObject(knext.PortObject):
-    def __init__(self, spec: SearchAuthPortSpec, credentials) -> None:
+    def __init__(self, spec: SearchAuthPortSpec, credentials, is_pro) -> None:
         super().__init__(spec)
         self._credentials = credentials
+        self._is_pro = is_pro
 
 
     def serialize(self) -> bytes:
-        return pickle.dumps(self._credentials)
+        payload = {
+            "port_version": 2,
+            "credentials": self._credentials,
+            "is_pro": self._is_pro
+        }
+        return pickle.dumps(payload)
 
 
     @classmethod
-    def deserialize(cls, spec: SearchAuthPortSpec, storage: bytes) -> "SearchAuthPortSpec":
-        return cls(spec, pickle.loads(storage))
+    def deserialize(cls, spec: SearchAuthPortSpec, storage: bytes) -> "SearchAuthPortObject":
+        payload = pickle.loads(storage)
+        if isinstance(payload, dict):
+            version = payload["port_version"]
+        else:
+            version = 1
+        
+        if version == 2:
+            # Version 2 payload structure:
+            # {
+            #   "port_version": 2,
+            #   "credentials": <str>,
+            #   "is_pro": <bool>
+            # }
+            credentials = payload["credentials"]
+            is_pro = payload["is_pro"]
+        elif version == 1:
+            # Version 1 (deprecated) payload structure:
+            # Only contains the credentials <str> without metadata.
+            credentials = payload
+            is_pro = False
+        else:
+            raise RuntimeError(
+                "Unknown Auth Port version! Reset and execute the Authenticator node again."
+            )
+
+        return cls(spec, credentials, is_pro)
 
 
     def get_credentials(self):
         return self._credentials
+
+
+    def get_is_pro(self):
+        return self._is_pro
 
 
 search_auth_port_type = knext.port_type(
@@ -114,6 +141,14 @@ class SearchAuthenticator:
         default_value=ExpirationOptions.one_hour.name,
         enum=ExpirationOptions,
         style=knext.EnumParameter.Style.DROPDOWN
+    )
+
+
+    key = knext.StringParameter(
+        label="License Key (Optional)",
+        description="Upgrade with a license key and supercharge your workflow:\n\n🔥 **Query node**: Remove the 100,000 row cap and fetch all available data\n\n🔥 **URL Inspection node**: Up to 10x faster execution thanks to parallel processing",
+        default_value="",
+        since_version="1.7.0"
     )
 
 
@@ -148,6 +183,10 @@ class SearchAuthenticator:
 
 
     def execute(self, exec_context):
+        is_pro = False
+        if len(self.key.strip()) != 0:
+            is_pro = lib.key_management.verify_key(key=self.key.strip())
+        
         credentials = lib.credentials.create_new(exec_context=exec_context)
 
         self.set_available_props(exec_context=exec_context, credentials=credentials)
@@ -158,7 +197,8 @@ class SearchAuthenticator:
 
         return SearchAuthPortObject(
             spec=SearchAuthPortSpec(),
-            credentials=credentials.to_json(strip=strip_keys)
+            credentials=credentials.to_json(strip=strip_keys),
+            is_pro=is_pro
         )
 
 
@@ -268,10 +308,10 @@ class AdvancedParameterGroup:
 
     row_limit = knext.IntParameter(
         label="Row Limit",
-        description="Specify how many rows should be returned at most.",
-        default_value=100000,
-        min_value=1,
-        max_value=100000
+        description="Set the maximum number of rows to return. **Use 0 to remove the limit** and fetch all available data.\n\n**Note:** Google may still impose restrictions based on query complexity, meaning very large or complex requests might take a long time or could result in a server error. Simplifying the query (e.g., shorter date ranges or fewer dimensions) can help improve speed and reliability.",
+        default_value=0,
+        min_value=0,
+        max_value=100000000000000
     )
 
 
@@ -384,13 +424,18 @@ class SearchQuery:
         )
 
         api_row_limit = 25000
+        user_row_limit = self.advanced.row_limit
         rows = []
+
+        if auth_port_object.get_is_pro() != True and (user_row_limit == 0 or user_row_limit > 100000):
+            user_row_limit = 100000
 
         i = 0
         while True:
             start_row = i * api_row_limit
 
-            exec_context.set_progress(start_row / self.advanced.row_limit)
+            if user_row_limit != 0:
+                exec_context.set_progress(start_row / user_row_limit)
 
             api_response = service.searchanalytics().query(
                 siteUrl=self.property_type.property,
@@ -400,8 +445,8 @@ class SearchQuery:
             new_rows = self.parse_response(api_response)
             rows += new_rows
 
-            if self.advanced.row_limit != 0 and self.advanced.row_limit <= len(rows):
-                rows = rows[:self.advanced.row_limit]
+            if user_row_limit != 0 and user_row_limit <= len(rows):
+                rows = rows[:user_row_limit]
                 break
 
             if len(new_rows) < api_row_limit:
@@ -411,6 +456,15 @@ class SearchQuery:
             time.sleep(lib.api_request_delay.get(i))
 
         service.close()
+
+        if (
+            auth_port_object.get_is_pro() != True
+            and len(rows) == 100000
+            and (self.advanced.row_limit == 0 or self.advanced.row_limit > 100000)
+        ):
+            exec_context.set_warning(
+                "You've reached the 100,000 row limit. Want more? Enter a valid license key in the Authenticator node to unlock the complete dataset."
+            )
 
         return knext.Table.from_pandas(
             data=pandas.DataFrame(data=rows),
@@ -598,6 +652,24 @@ class UrlInspection:
             "RR: JSON": rrr
         }
 
+    def inspect_one(self, url, property, credentials):
+        service = build(
+            serviceName="searchconsole",
+            version="v1",
+            credentials=credentials
+        )
+
+        api_response = service.urlInspection().index().inspect(
+                body={
+                    "siteUrl": property,
+                    "inspectionUrl": url
+                }
+            ).execute()
+        
+        service.close()
+        
+        return api_response
+
 
     def execute(self, exec_context, auth_port_object, inspection_url_port_object):
         if self.property_inspection_url_column.property == None:
@@ -607,33 +679,34 @@ class UrlInspection:
         if inspection_url_column == None:
             raise ValueError("No value for 'Inspection URL Column' parameter selected!")
         
-        service = build(
-            serviceName="searchconsole",
-            version="v1",
-            credentials=lib.credentials.parse_json(auth_port_object.get_credentials())
-        )
+        max_workers = 10
+        if auth_port_object.get_is_pro() != True:
+            max_workers = 1
+
+        credentials = lib.credentials.parse_json(auth_port_object.get_credentials())
 
         inspection_url_df = inspection_url_port_object[inspection_url_column].to_pandas()
         inspection_url_series = inspection_url_df[inspection_url_column]
         rows = []
 
-        i = 0
-        for url in inspection_url_series:
-            exec_context.set_progress(i / len(inspection_url_series))
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            for api_response in executor.map(
+                self.inspect_one,
+                inspection_url_series,
+                itertools.repeat(self.property_inspection_url_column.property),
+                itertools.repeat(credentials),
+            ):
+                if exec_context.is_canceled() == True:
+                    executor.shutdown(wait=True, cancel_futures=True)
+                    raise RuntimeError("Execution was canceled.")
+                
+                rows.append(
+                    self.build_row(
+                        url=inspection_url_series[len(rows)], api_response=api_response
+                    )
+                )
 
-            api_response = service.urlInspection().index().inspect(
-                body={
-                    "siteUrl": self.property_inspection_url_column.property,
-                    "inspectionUrl": url
-                }
-            ).execute()
-
-            rows.append(self.build_row(url=url, api_response=api_response))
-
-            i += 1
-            time.sleep(lib.api_request_delay.get(i))
-
-        service.close()
+                exec_context.set_progress(len(rows) / len(inspection_url_series))
 
         return knext.Table.from_pandas(
             data=pandas.DataFrame(data=rows),
