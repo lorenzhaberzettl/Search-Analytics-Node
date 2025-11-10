@@ -687,6 +687,13 @@ class UrlInspection:
 
         inspection_url_df = inspection_url_port_object[inspection_url_column].to_pandas()
         inspection_url_series = inspection_url_df[inspection_url_column]
+        if len(inspection_url_series) > 2000:
+            raise ValueError(
+                "Your input table contains too many URLs to inspect! Google allows up to 2,000 URL Inspection requests per property each day, but your request included "
+                + str(len(inspection_url_series))
+                + ". Please reduce the number of rows and try again."
+            )
+
         rows = []
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
