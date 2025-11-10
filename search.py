@@ -320,7 +320,7 @@ class AdvancedParameterGroup:
 @knext.output_table(name="Result Table", description="")
 class SearchQuery:
     """Retrieve detailed search performance data from the Google Search Console API.
-    This node fetches data from the Google Search Console API. It returns information like search impressions, clicks, position, query string, and more. Before use, an Authenticator node must be connected and executed.
+    This node fetches data from the Google Search Console API. It returns information like search impressions, clicks, position, query string, and more.\n\nBefore use, an Authenticator node must be connected and executed.
     """
 
 
@@ -502,7 +502,7 @@ class UrlInspectionAdvancedParameterGroup:
 @knext.output_table(name="Result Table", description="")
 class UrlInspection:
     """Retrieve detailed indexing information and issues from the Google Search Console URL Inspection API.
-    This node fetches data from the URL Inspection API, which is part of the Google Search Console. It returns information on the Index Status, Mobile Usability, Accelerated Mobile Pages, and Rich Results. Before use, an Authenticator node must be connected and executed.
+    This node fetches data from the URL Inspection API, which is part of the Google Search Console. It returns information on the Index Status, Mobile Usability, Accelerated Mobile Pages, and Rich Results.\n\n**Google allows inspecting up to 2,000 URLs per property each day.** Once you reach that limit, any additional requests will fail with a *'quota exceeded'* error. Your quota automatically resets every 24 hours.\n\nBefore use, an Authenticator node must be connected and executed.
     """
 
 
