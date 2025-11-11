@@ -124,7 +124,7 @@ search_auth_port_type = knext.port_type(
 
 
 @knext.node(name="Search Analytics - Authenticator", node_type=knext.NodeType.OTHER, icon_path="icons/authenticator.png", category=category, keywords=KNIME_NODE_KEYWORDS)
-@knext.output_port(name="Search Analytics Auth Port", description="", port_type=search_auth_port_type)
+@knext.output_port(name="Search Analytics Auth Port", description="Emits authentication credentials for downstream use.", port_type=search_auth_port_type)
 class SearchAuthenticator:
     """This node allows you to authenticate yourself with Google.
     Authenticate yourself with Google by executing this node. A browser window will open to guide you through the process.
@@ -208,12 +208,12 @@ class PropertyTypeParameterGroup:
 
 
     class TypeOptions(knext.EnumParameterOptions):
-        web = ("Web", "description")
-        discover = ("Discover", "description")
-        googleNews = ("GoogleNews", "description")
-        news = ("News", "description")
-        image = ("Image", "description")
-        video = ("Video", "description")
+        web = ("Web", "Only *(standard) Google Search \"All\" tab* traffic.")
+        discover = ("Discover", "Only *Google Discover* traffic.")
+        googleNews = ("GoogleNews", "Only *news.google.com and Google News app (Android and iOS)* traffic, excluding Google Search \"News\" tab.")
+        news = ("News", "Only *Google Search \"News\"* tab traffic.")
+        image = ("Image", "Only *Google Search \"Images\"* tab traffic.")
+        video = ("Video", "Only *Google Search \"Videos\"* tab traffic.")
     
     type = knext.EnumParameter(
         label="Search Type",
@@ -292,14 +292,14 @@ class AdvancedParameterGroup:
 
 
     class AggregationOptions(knext.EnumParameterOptions):
-        auto = ("Auto", "description")
-        byPage = ("Page", "description")
-        byProperty = ("Property", "description")
-        byNewsShowcasePanel = ("NewsShowcasePanel", "description")
+        auto = ("Auto", "Google automatically selects the most appropriate aggregation type.")
+        byPage = ("Page", "Aggregate data by page.")
+        byProperty = ("Property", "Aggregate data by property.")
+        byNewsShowcasePanel = ("NewsShowcasePanel", "Aggregate data by News Showcase Panel.")
     
     aggregation = knext.EnumParameter(
         label="Aggregation Type",
-        description="",
+        description="Select the aggregation type. For more information, refer to [Google's documentation](https://support.google.com/webmasters/answer/6155685#urlorsite).",
         default_value=AggregationOptions.auto.name,
         enum=AggregationOptions,
         style=knext.EnumParameter.Style.DROPDOWN
@@ -316,8 +316,8 @@ class AdvancedParameterGroup:
 
 
 @knext.node(name="Search Analytics - Query", node_type=knext.NodeType.SOURCE, icon_path="icons/query.png", category=category, keywords=KNIME_NODE_KEYWORDS)
-@knext.input_port(name="Search Analytics Auth Port", description="", port_type=search_auth_port_type)
-@knext.output_table(name="Result Table", description="")
+@knext.input_port(name="Search Analytics Auth Port", description="Recieves authentication credentials from a *Search Analytics - Authenticator* node.", port_type=search_auth_port_type)
+@knext.output_table(name="Result Table", description="Output table with search impressions, clicks, position, and other details, based on the node's configuration.")
 class SearchQuery:
     """Retrieve detailed search performance data from the Google Search Console API.
     This node fetches data from the Google Search Console API. It returns information like search impressions, clicks, position, query string, and more.\n\nBefore use, an Authenticator node must be connected and executed.
@@ -497,9 +497,9 @@ class UrlInspectionAdvancedParameterGroup:
 
 
 @knext.node(name="Search Analytics - URL Inspection", node_type=knext.NodeType.SOURCE, icon_path="icons/url-inspection.png", category=category, keywords=KNIME_NODE_KEYWORDS)
-@knext.input_port(name="Search Analytics Auth Port", description="", port_type=search_auth_port_type)
-@knext.input_table(name="URL Table", description="")
-@knext.output_table(name="Result Table", description="")
+@knext.input_port(name="Search Analytics Auth Port", description="Recieves authentication credentials from a *Search Analytics - Authenticator* node.", port_type=search_auth_port_type)
+@knext.input_table(name="URL Table", description="Input table with URLs to inspect.")
+@knext.output_table(name="Result Table", description="Output table with details on inspected URLs' Index Status, Mobile Usability, Accelerated Mobile Pages, and Rich Results, based on the node's configuration.")
 class UrlInspection:
     """Retrieve detailed indexing information and issues from the Google Search Console URL Inspection API.
     This node fetches data from the URL Inspection API, which is part of the Google Search Console. It returns information on the Index Status, Mobile Usability, Accelerated Mobile Pages, and Rich Results.\n\n**Google allows inspecting up to 2,000 URLs per property each day.** Once you reach that limit, any additional requests will fail with a *'quota exceeded'* error. Your quota automatically resets every 24 hours.\n\nBefore use, an Authenticator node must be connected and executed.
@@ -689,7 +689,7 @@ class UrlInspection:
         inspection_url_series = inspection_url_df[inspection_url_column]
         if len(inspection_url_series) > 2000:
             raise ValueError(
-                "Your input table contains too many URLs to inspect! Google allows up to 2,000 URL Inspection requests per property each day, but your request included "
+                "Your input table contains too many URLs to inspect! Google allows inspecting up to 2,000 URLs per property each day, but your request included "
                 + str(len(inspection_url_series))
                 + ". Please reduce the number of rows and try again."
             )
