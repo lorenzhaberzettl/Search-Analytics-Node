@@ -678,6 +678,12 @@ class UrlInspection:
         inspection_url_column = self.property_inspection_url_column.inspection_url_column
         if inspection_url_column == None:
             raise ValueError("No value for 'URL Table Column' parameter selected!")
+        if inspection_url_column not in inspection_url_port_object.column_names:
+            raise ValueError(
+                "The column specified in the 'URL Table Column' parameter ('"
+                + inspection_url_column
+                + "') does not exist in the table connected to the 'URL Table' input port!"
+            )
         
         max_workers = 10
         if auth_port_object.get_is_pro() != True:
