@@ -677,7 +677,7 @@ class UrlInspection:
 
         inspection_url_column = self.property_inspection_url_column.inspection_url_column
         if inspection_url_column == None:
-            raise ValueError("No value for 'Inspection URL Column' parameter selected!")
+            raise ValueError("No value for 'URL Table Column' parameter selected!")
         
         max_workers = 10
         if auth_port_object.get_is_pro() != True:
