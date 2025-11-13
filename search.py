@@ -691,8 +691,7 @@ class UrlInspection:
 
         credentials = lib.credentials.parse_json(auth_port_object.get_credentials())
 
-        inspection_url_df = inspection_url_port_object[inspection_url_column].to_pandas()
-        inspection_url_series = inspection_url_df[inspection_url_column]
+        inspection_url_series = inspection_url_port_object.to_pandas()[inspection_url_column]
         if inspection_url_series.isna().any() == True:
             raise ValueError("The selected column of the input table contains missing values!")
         if inspection_url_series.eq("").any() == True:
