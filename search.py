@@ -722,7 +722,10 @@ class UrlInspection:
                     )
                 )
 
-                exec_context.set_progress(len(rows) / len(inspection_url_series))
+                exec_context.set_progress(
+                    len(rows) / len(inspection_url_series),
+                    str(len(rows)) + " of " + str(len(inspection_url_series)) + " URLs processed",
+                )
 
         return knext.Table.from_pandas(
             data=pandas.DataFrame(data=rows),
