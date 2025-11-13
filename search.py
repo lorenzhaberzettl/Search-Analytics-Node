@@ -693,6 +693,10 @@ class UrlInspection:
 
         inspection_url_df = inspection_url_port_object[inspection_url_column].to_pandas()
         inspection_url_series = inspection_url_df[inspection_url_column]
+        if inspection_url_series.isna().any() == True:
+            raise ValueError("The selected column of the input table contains missing values!")
+        if inspection_url_series.eq("").any() == True:
+            raise ValueError("The selected column of the input table contains empty string values!")
         if len(inspection_url_series) > 2000:
             raise ValueError(
                 "Your input table contains too many URLs to inspect! Google allows inspecting up to 2,000 URLs per property each day, but your request included "
