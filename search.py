@@ -434,8 +434,10 @@ class SearchQuery:
         while True:
             start_row = i * api_row_limit
 
-            if user_row_limit != 0:
-                exec_context.set_progress(start_row / user_row_limit)
+            exec_context.set_progress(
+                (start_row / user_row_limit) if user_row_limit != 0 else 0.5,
+                "Fetched " + str(start_row) + " rows and counting ...",
+            )
 
             api_response = service.searchanalytics().query(
                 siteUrl=self.property_type.property,
