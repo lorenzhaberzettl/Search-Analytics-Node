@@ -124,7 +124,7 @@ search_auth_port_type = knext.port_type(
 
 
 @knext.node(name="Search Analytics - Authenticator", node_type=knext.NodeType.OTHER, icon_path="icons/authenticator.png", category=category, keywords=KNIME_NODE_KEYWORDS)
-@knext.output_port(name="Search Analytics Auth Port", description="", port_type=search_auth_port_type)
+@knext.output_port(name="Search Analytics Auth Port", description="Emits authentication credentials for downstream use.", port_type=search_auth_port_type)
 class SearchAuthenticator:
     """This node allows you to authenticate yourself with Google.
     Authenticate yourself with Google by executing this node. A browser window will open to guide you through the process.
@@ -208,12 +208,12 @@ class PropertyTypeParameterGroup:
 
 
     class TypeOptions(knext.EnumParameterOptions):
-        web = ("Web", "description")
-        discover = ("Discover", "description")
-        googleNews = ("GoogleNews", "description")
-        news = ("News", "description")
-        image = ("Image", "description")
-        video = ("Video", "description")
+        web = ("Web", "Only *(standard) Google Search \"All\" tab* traffic.")
+        discover = ("Discover", "Only *Google Discover* traffic.")
+        googleNews = ("GoogleNews", "Only *news.google.com and Google News app (Android and iOS)* traffic, excluding Google Search \"News\" tab.")
+        news = ("News", "Only *Google Search \"News\"* tab traffic.")
+        image = ("Image", "Only *Google Search \"Images\"* tab traffic.")
+        video = ("Video", "Only *Google Search \"Videos\"* tab traffic.")
     
     type = knext.EnumParameter(
         label="Search Type",
@@ -292,14 +292,14 @@ class AdvancedParameterGroup:
 
 
     class AggregationOptions(knext.EnumParameterOptions):
-        auto = ("Auto", "description")
-        byPage = ("Page", "description")
-        byProperty = ("Property", "description")
-        byNewsShowcasePanel = ("NewsShowcasePanel", "description")
+        auto = ("Auto", "Google automatically selects the most appropriate aggregation type.")
+        byPage = ("Page", "Aggregate data by page.")
+        byProperty = ("Property", "Aggregate data by property.")
+        byNewsShowcasePanel = ("NewsShowcasePanel", "Aggregate data by News Showcase Panel.")
     
     aggregation = knext.EnumParameter(
         label="Aggregation Type",
-        description="",
+        description="Select the aggregation type. For more information, refer to [Google's documentation](https://support.google.com/webmasters/answer/6155685#urlorsite).",
         default_value=AggregationOptions.auto.name,
         enum=AggregationOptions,
         style=knext.EnumParameter.Style.DROPDOWN
@@ -316,11 +316,11 @@ class AdvancedParameterGroup:
 
 
 @knext.node(name="Search Analytics - Query", node_type=knext.NodeType.SOURCE, icon_path="icons/query.png", category=category, keywords=KNIME_NODE_KEYWORDS)
-@knext.input_port(name="Search Analytics Auth Port", description="", port_type=search_auth_port_type)
-@knext.output_table(name="Result Table", description="")
+@knext.input_port(name="Search Analytics Auth Port", description="Recieves authentication credentials from a *Search Analytics - Authenticator* node.", port_type=search_auth_port_type)
+@knext.output_table(name="Result Table", description="Output table with search impressions, clicks, position, and other details, based on the node's configuration.")
 class SearchQuery:
     """Retrieve detailed search performance data from the Google Search Console API.
-    This node fetches data from the Google Search Console API. It returns information like search impressions, clicks, position, query string, and more. Before use, an Authenticator node must be connected and executed.
+    This node fetches data from the Google Search Console API. It returns information like search impressions, clicks, position, query string, and more.\n\nBefore use, an Authenticator node must be connected and executed.
     """
 
 
@@ -434,8 +434,10 @@ class SearchQuery:
         while True:
             start_row = i * api_row_limit
 
-            if user_row_limit != 0:
-                exec_context.set_progress(start_row / user_row_limit)
+            exec_context.set_progress(
+                (start_row / user_row_limit) if user_row_limit != 0 else 0.5,
+                "Fetched " + str(start_row) + " rows and counting ...",
+            )
 
             api_response = service.searchanalytics().query(
                 siteUrl=self.property_type.property,
@@ -497,12 +499,12 @@ class UrlInspectionAdvancedParameterGroup:
 
 
 @knext.node(name="Search Analytics - URL Inspection", node_type=knext.NodeType.SOURCE, icon_path="icons/url-inspection.png", category=category, keywords=KNIME_NODE_KEYWORDS)
-@knext.input_port(name="Search Analytics Auth Port", description="", port_type=search_auth_port_type)
-@knext.input_table(name="URL Table", description="")
-@knext.output_table(name="Result Table", description="")
+@knext.input_port(name="Search Analytics Auth Port", description="Recieves authentication credentials from a *Search Analytics - Authenticator* node.", port_type=search_auth_port_type)
+@knext.input_table(name="URL Table", description="Input table with URLs to inspect.")
+@knext.output_table(name="Result Table", description="Output table with details on inspected URLs' Index Status, Mobile Usability, Accelerated Mobile Pages, and Rich Results, based on the node's configuration.")
 class UrlInspection:
     """Retrieve detailed indexing information and issues from the Google Search Console URL Inspection API.
-    This node fetches data from the URL Inspection API, which is part of the Google Search Console. It returns information on the Index Status, Mobile Usability, Accelerated Mobile Pages, and Rich Results. Before use, an Authenticator node must be connected and executed.
+    This node fetches data from the URL Inspection API, which is part of the Google Search Console. It returns information on the Index Status, Mobile Usability, Accelerated Mobile Pages, and Rich Results.\n\n**Google allows inspecting up to 2,000 URLs per property each day.** Once you reach that limit, any additional requests will fail with a *'quota exceeded'* error. Your quota automatically resets every 24 hours.\n\nBefore use, an Authenticator node must be connected and executed.
     """
 
 
@@ -677,7 +679,13 @@ class UrlInspection:
 
         inspection_url_column = self.property_inspection_url_column.inspection_url_column
         if inspection_url_column == None:
-            raise ValueError("No value for 'Inspection URL Column' parameter selected!")
+            raise ValueError("No value for 'URL Table Column' parameter selected!")
+        if inspection_url_column not in inspection_url_port_object.column_names:
+            raise ValueError(
+                "The column specified in the 'URL Table Column' parameter ('"
+                + inspection_url_column
+                + "') does not exist in the table connected to the 'URL Table' input port!"
+            )
         
         max_workers = 10
         if auth_port_object.get_is_pro() != True:
@@ -685,8 +693,18 @@ class UrlInspection:
 
         credentials = lib.credentials.parse_json(auth_port_object.get_credentials())
 
-        inspection_url_df = inspection_url_port_object[inspection_url_column].to_pandas()
-        inspection_url_series = inspection_url_df[inspection_url_column]
+        inspection_url_series = inspection_url_port_object.to_pandas()[inspection_url_column]
+        if inspection_url_series.isna().any() == True:
+            raise ValueError("The selected column of the input table contains missing values!")
+        if inspection_url_series.eq("").any() == True:
+            raise ValueError("The selected column of the input table contains empty string values!")
+        if len(inspection_url_series) > 2000:
+            raise ValueError(
+                "Your input table contains too many URLs to inspect! Google allows inspecting up to 2,000 URLs per property each day, but your request included "
+                + str(len(inspection_url_series))
+                + ". Please reduce the number of rows and try again."
+            )
+
         rows = []
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -706,7 +724,10 @@ class UrlInspection:
                     )
                 )
 
-                exec_context.set_progress(len(rows) / len(inspection_url_series))
+                exec_context.set_progress(
+                    len(rows) / len(inspection_url_series),
+                    str(len(rows)) + " of " + str(len(inspection_url_series)) + " URLs processed",
+                )
 
         return knext.Table.from_pandas(
             data=pandas.DataFrame(data=rows),
