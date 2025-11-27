@@ -1,10 +1,10 @@
-name: Search-Analytics-Node
-author: Vitus Haberzettl, Lorenz Haberzettl
-pixi_toml_path: pixi.toml
-extension_module: search
-description: Search Analytics Node
-long_description: Import data from Google Search Console into KNIME. For more information, visit https://searchanalyticsnode.com/
-group_id: com.searchanalyticsnode
+name: "Search-Analytics-Node"
+author: "Vitus Haberzettl, Lorenz Haberzettl"
+pixi_toml_path: "./pixi.toml"
+extension_module: "search"
+description: "Search Analytics Node"
+long_description: "Import data from Google Search Console into KNIME. For more information, visit https://searchanalyticsnode.com/"
+group_id: "com.searchanalyticsnode"
 version: 1.7.1
-vendor: Vitus and Lorenz Haberzettl
-license_file: LICENSE.TXT
+vendor: "Vitus and Lorenz Haberzettl"
+license_file: "./LICENSE.TXT"

@@ -1,5 +1,3 @@
-
 # pixi environments
-.pixi
-*.egg-info
-./local-update-site
+.pixi/*
+!.pixi/config.toml
