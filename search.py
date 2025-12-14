@@ -124,10 +124,14 @@ search_auth_port_type = knext.port_type(
 
 
 @knext.node(name="Search Analytics - Authenticator", node_type=knext.NodeType.OTHER, icon_path="icons/authenticator.png", category=category, keywords=KNIME_NODE_KEYWORDS)
-@knext.output_port(name="Search Analytics Auth Port", description="Emits authentication credentials for downstream use.", port_type=search_auth_port_type)
+@knext.output_port(name="Search Analytics Auth Port", description="Emits authentication credentials for downstream nodes.", port_type=search_auth_port_type)
 class SearchAuthenticator:
-    """This node allows you to authenticate yourself with Google.
-    Authenticate yourself with Google by executing this node. A browser window will open to guide you through the process.
+    """Connects your Google account with your workflow.
+    Connects your Google account with your workflow.
+
+    When executed, this node opens a browser window where you **sign in and grant access**.
+
+    The node outputs authentication credentials that other Search Analytics nodes use to fetch data.
     """
 
 
@@ -317,10 +321,21 @@ class AdvancedParameterGroup:
 
 @knext.node(name="Search Analytics - Query", node_type=knext.NodeType.SOURCE, icon_path="icons/query.png", category=category, keywords=KNIME_NODE_KEYWORDS)
 @knext.input_port(name="Search Analytics Auth Port", description="Recieves authentication credentials from a *Search Analytics - Authenticator* node.", port_type=search_auth_port_type)
-@knext.output_table(name="Result Table", description="Output table with search impressions, clicks, position, and other details, based on the node's configuration.")
+@knext.output_table(name="Result Table", description="Output table containing search performance metrics based on your selected options.")
 class SearchQuery:
-    """Retrieve detailed search performance data from the Google Search Console API.
-    This node fetches data from the Google Search Console API. It returns information like search impressions, clicks, position, query string, and more.\n\nBefore use, an Authenticator node must be connected and executed.
+    """Fetches search performance data from the Google Search Console API.
+    Fetches **search performance data** from the Google Search Console API.
+
+    Use this node to retrieve metrics such as:
+    - Impressions
+    - Clicks
+    - Position
+    - Search queries
+    - Pages
+    - Countries
+    - Devices, and more
+
+    ⚠️ This node requires a connected and executed **Search Analytics - Authenticator** node.
     """
 
 
@@ -501,10 +516,20 @@ class UrlInspectionAdvancedParameterGroup:
 @knext.node(name="Search Analytics - URL Inspection", node_type=knext.NodeType.SOURCE, icon_path="icons/url-inspection.png", category=category, keywords=KNIME_NODE_KEYWORDS)
 @knext.input_port(name="Search Analytics Auth Port", description="Recieves authentication credentials from a *Search Analytics - Authenticator* node.", port_type=search_auth_port_type)
 @knext.input_table(name="URL Table", description="Input table with URLs to inspect.")
-@knext.output_table(name="Result Table", description="Output table with details on inspected URLs' Index Status, Mobile Usability, Accelerated Mobile Pages, and Rich Results, based on the node's configuration.")
+@knext.output_table(name="Result Table", description="Output table with inspection results for each URL.")
 class UrlInspection:
-    """Retrieve detailed indexing information and issues from the Google Search Console URL Inspection API.
-    This node fetches data from the URL Inspection API, which is part of the Google Search Console. It returns information on the Index Status, Mobile Usability, Accelerated Mobile Pages, and Rich Results.\n\n**Google allows inspecting up to 2,000 URLs per property each day.** Once you reach that limit, any additional requests will fail with a *'quota exceeded'* error. Your quota automatically resets every 24 hours.\n\nBefore use, an Authenticator node must be connected and executed.
+    """Fetches URL-level diagnostics using the Google Search Console URL Inspection API.
+    Fetches **URL-level diagnostics** using the Google Search Console URL Inspection API.
+
+    For each URL, this node returns details such as:
+    - Index Status
+    - Mobile Usability
+    - Accelerated Mobile Pages
+    - Rich Results
+
+    Google allows up to **2,000 URL inspections per property each day**. If you exceed this limit, subsequent requests will fail with a *quota-exceeded* error. The quota resets automatically every 24 hours.
+
+    ⚠️ This node requires a connected and executed **Search Analytics - Authenticator** node.
     """
 
 
