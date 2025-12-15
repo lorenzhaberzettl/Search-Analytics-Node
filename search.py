@@ -733,3 +733,119 @@ class UrlInspection:
             data=pandas.DataFrame(data=rows),
             row_ids="auto"
         )
+
+
+@knext.parameter_group(label="Filter")
+class FilterParameterGroup:
+    class TypeFilterOptions(knext.EnumParameterOptions):
+        all = ("Any", "No filtering by property type.")
+        urlprefix = ("URL-Prefix Only", "Show only URL-Prefix properties.")
+        domain = ("Domain Only", "Show only Domain properties.")
+    
+    type_filter = knext.EnumParameter(
+        label="Property Type",
+        description="Limit results by property type.",
+        default_value=TypeFilterOptions.all.name,
+        enum=TypeFilterOptions,
+        style=knext.EnumParameter.Style.DROPDOWN
+    )
+
+    
+    class VerificationFilterOptions(knext.EnumParameterOptions):
+        all = ("Any", "No filtering by verification status.")
+        verified = ("Verified Only", "Show only verified properties.")
+        unverified = ("Unverified Only", "Show only unverified properties.")
+    
+    verification_filter = knext.EnumParameter(
+        label="Verification Status",
+        description="Limit results by verification status.",
+        default_value=VerificationFilterOptions.all.name,
+        enum=VerificationFilterOptions,
+        style=knext.EnumParameter.Style.DROPDOWN
+    )
+
+
+@knext.node(name="Search Analytics - Property Details", node_type=knext.NodeType.SOURCE, icon_path="icons/url-inspection.png", category=category, keywords=KNIME_NODE_KEYWORDS)
+@knext.input_port(name="Search Analytics Auth Port", description="Recieves authentication credentials from a *Search Analytics - Authenticator* node.", port_type=search_auth_port_type)
+@knext.output_table(name="Result Table", description="Output table with your Google Search Console properties.")
+class PropertyDetails:
+    """Fetches a list of your Google Search Console properties.
+    Fetches a list of your **Google Search Console properties** and lets you filter them by property type and verification status. Use it to quickly spot which sites are verified and which still need attention.
+
+    **This is a helper node — optional and not required by the other nodes.**
+
+    ⚠️ This node requires a connected and executed **Search Analytics - Authenticator** node.
+    """
+
+
+    filters = FilterParameterGroup()
+
+    output_df_schema = {
+        "Site URL": "string",
+        "Property Type": "string",
+        "Permission Level": "string",
+        "Verified": "boolean"
+    }
+    
+
+    def configure(self, config_context, auth_port_spec):
+        pass
+
+
+    def execute(self, exec_context, auth_port_object):
+        credentials = lib.credentials.parse_json(auth_port_object.get_credentials())
+
+        service = build(
+            serviceName="searchconsole",
+            version="v1",
+            credentials=credentials
+        )
+        
+        sites_list_result = service.sites().list().execute()
+        
+        service.close()
+
+        rows = pandas.DataFrame({col: pandas.Series(dtype=dtype) for col, dtype in self.output_df_schema.items()})
+
+        if "siteEntry" not in sites_list_result:
+            exec_context.set_warning("The selected Google account does not have any Search Console properties.")
+        else:
+            for e in sites_list_result["siteEntry"]:
+                site_url = e["siteUrl"]
+                permission_level = e["permissionLevel"]
+                is_domain_property = site_url.startswith("sc-domain:")
+                is_verified = "unverified".casefold() not in permission_level.casefold()
+
+
+                if (
+                    self.filters.type_filter == self.filters.TypeFilterOptions.urlprefix.name
+                    and is_domain_property
+                ) or (
+                    self.filters.type_filter == self.filters.TypeFilterOptions.domain.name
+                    and not is_domain_property
+                ):
+                    continue
+
+                if (
+                    self.filters.verification_filter
+                    == self.filters.VerificationFilterOptions.verified.name
+                    and not is_verified
+                ) or (
+                    self.filters.verification_filter
+                    == self.filters.VerificationFilterOptions.unverified.name
+                    and is_verified
+                ):
+                    continue
+
+
+                rows.loc[len(rows)] = {
+                    "Site URL": site_url,
+                    "Property Type": "Domain" if is_domain_property else "URL-Prefix",
+                    "Permission Level": permission_level,
+                    "Verified": is_verified
+                }
+
+        return knext.Table.from_pandas(
+            data=rows.astype(self.output_df_schema),
+            row_ids="auto"
+        )
