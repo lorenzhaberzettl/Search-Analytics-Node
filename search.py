@@ -805,10 +805,17 @@ class PropertyDetails:
         
         service.close()
 
-        rows = pandas.DataFrame({col: pandas.Series(dtype=dtype) for col, dtype in self.output_df_schema.items()})
+        rows = pandas.DataFrame(
+            {
+                col: pandas.Series(dtype=dtype)
+                for col, dtype in self.output_df_schema.items()
+            }
+        )
 
         if "siteEntry" not in sites_list_result:
-            exec_context.set_warning("The selected Google account does not have any Search Console properties.")
+            exec_context.set_warning(
+                "The selected Google account does not have any Search Console properties."
+            )
         else:
             for e in sites_list_result["siteEntry"]:
                 site_url = e["siteUrl"]
