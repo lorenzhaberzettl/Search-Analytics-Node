@@ -741,27 +741,27 @@ class FilterParameterGroup:
         all = ("Any", "No filtering by property type.")
         urlprefix = ("URL-Prefix Only", "Show only URL-Prefix properties.")
         domain = ("Domain Only", "Show only Domain properties.")
-    
+
     type_filter = knext.EnumParameter(
         label="Property Type",
         description="Limit results by property type.",
         default_value=TypeFilterOptions.all.name,
         enum=TypeFilterOptions,
-        style=knext.EnumParameter.Style.DROPDOWN
+        style=knext.EnumParameter.Style.DROPDOWN,
     )
 
-    
+
     class VerificationFilterOptions(knext.EnumParameterOptions):
         all = ("Any", "No filtering by verification status.")
         verified = ("Verified Only", "Show only verified properties.")
         unverified = ("Unverified Only", "Show only unverified properties.")
-    
+
     verification_filter = knext.EnumParameter(
         label="Verification Status",
         description="Limit results by verification status.",
         default_value=VerificationFilterOptions.all.name,
         enum=VerificationFilterOptions,
-        style=knext.EnumParameter.Style.DROPDOWN
+        style=knext.EnumParameter.Style.DROPDOWN,
     )
 
 
@@ -784,7 +784,7 @@ class PropertyDetails:
         "Site URL": "string",
         "Property Type": "string",
         "Permission Level": "string",
-        "Verified": "boolean"
+        "Verified": "boolean",
     }
     
 
@@ -796,13 +796,11 @@ class PropertyDetails:
         credentials = lib.credentials.parse_json(auth_port_object.get_credentials())
 
         service = build(
-            serviceName="searchconsole",
-            version="v1",
-            credentials=credentials
+            serviceName="searchconsole", version="v1", credentials=credentials
         )
-        
+
         sites_list_result = service.sites().list().execute()
-        
+
         service.close()
 
         rows = pandas.DataFrame(
@@ -823,12 +821,13 @@ class PropertyDetails:
                 is_domain_property = site_url.startswith("sc-domain:")
                 is_verified = "unverified".casefold() not in permission_level.casefold()
 
-
                 if (
-                    self.filters.type_filter == self.filters.TypeFilterOptions.urlprefix.name
+                    self.filters.type_filter
+                    == self.filters.TypeFilterOptions.urlprefix.name
                     and is_domain_property
                 ) or (
-                    self.filters.type_filter == self.filters.TypeFilterOptions.domain.name
+                    self.filters.type_filter
+                    == self.filters.TypeFilterOptions.domain.name
                     and not is_domain_property
                 ):
                     continue
@@ -844,15 +843,13 @@ class PropertyDetails:
                 ):
                     continue
 
-
                 rows.loc[len(rows)] = {
                     "Site URL": site_url,
                     "Property Type": "Domain" if is_domain_property else "URL-Prefix",
                     "Permission Level": permission_level,
-                    "Verified": is_verified
+                    "Verified": is_verified,
                 }
 
         return knext.Table.from_pandas(
-            data=rows.astype(self.output_df_schema),
-            row_ids="auto"
+            data=rows.astype(self.output_df_schema), row_ids="auto"
         )
