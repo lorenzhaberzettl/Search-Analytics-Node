@@ -327,6 +327,7 @@ class SearchQuery:
     Fetches **search performance data** from the Google Search Console API.
 
     Use this node to retrieve metrics such as:
+
     - Impressions
     - Clicks
     - Position
@@ -522,6 +523,7 @@ class UrlInspection:
     Fetches **URL-level diagnostics** using the Google Search Console URL Inspection API.
 
     For each URL, this node returns details such as:
+
     - Index Status
     - Mobile Usability
     - Accelerated Mobile Pages
