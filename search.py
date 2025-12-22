@@ -176,7 +176,7 @@ class SearchAuthenticator:
 
         available_props = []
         for e in sites_list_result["siteEntry"]:
-            if "unverified" in e["permissionLevel"].lower():
+            if "unverified".casefold() in e["permissionLevel"].casefold():
                 continue
             available_props.append(e["siteUrl"])
         
