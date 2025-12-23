@@ -171,17 +171,19 @@ class SearchAuthenticator:
         
         service.close()
 
-        if "siteEntry" not in sites_list_result:
-            raise RuntimeError("The selected Google account does not have any Search Console properties.")
+        site_entries = sites_list_result.get("siteEntry", [])
+
+        if len(site_entries) == 0:
+            exec_context.set_warning("The selected Google account does not have any Search Console properties.")
 
         available_props = []
-        for e in sites_list_result["siteEntry"]:
+        for e in site_entries:
             if "unverified".casefold() in e["permissionLevel"].casefold():
                 continue
             available_props.append(e["siteUrl"])
         
-        if len(available_props) == 0:
-            raise RuntimeError("The selected Google Account does not have any verified Search Console properties. Verify your property and then execute again.")
+        if len(site_entries) > 0 and len(available_props) == 0:
+            exec_context.set_warning("The selected Google Account does not have any verified Search Console properties. Verify your property and then execute again.")
 
         exec_context.flow_variables["available_props"] = available_props
 
