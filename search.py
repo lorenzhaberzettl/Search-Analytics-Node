@@ -815,7 +815,7 @@ class PropertyDetails:
         "Permission Level": "string",
         "Verified": "boolean",
     }
-    
+
 
     def configure(self, config_context, auth_port_spec):
         pass
