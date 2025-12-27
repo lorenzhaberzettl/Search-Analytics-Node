@@ -85,7 +85,7 @@ class SearchAuthPortObject(knext.PortObject):
             version = payload["port_version"]
         else:
             version = 1
-        
+
         if version == 2:
             # Version 2 payload structure:
             # {
@@ -166,9 +166,9 @@ class SearchAuthenticator:
             version="v1",
             credentials=credentials
         )
-        
+
         sites_list_result = service.sites().list().execute()
-        
+
         service.close()
 
         site_entries = sites_list_result.get("siteEntry", [])
@@ -181,7 +181,7 @@ class SearchAuthenticator:
             if "unverified".casefold() in e["permissionLevel"].casefold():
                 continue
             available_props.append(e["siteUrl"])
-        
+
         if len(site_entries) > 0 and len(available_props) == 0:
             exec_context.set_warning("The selected Google Account does not have any verified Search Console properties. Verify your property and then execute again.")
 
@@ -220,7 +220,7 @@ class PropertyTypeParameterGroup:
         news = ("News", "Only *Google Search \"News\"* tab traffic.")
         image = ("Image", "Only *Google Search \"Images\"* tab traffic.")
         video = ("Video", "Only *Google Search \"Videos\"* tab traffic.")
-    
+
     type = knext.EnumParameter(
         label="Search Type",
         description="Limit results to the specified type.",
@@ -248,7 +248,7 @@ class DateRangeParameterGroup:
         since_version="1.1.0",
         style=knext.EnumParameter.Style.DROPDOWN
     )
-    
+
     # If the show_time parameter is set to False, DateTimeParameter will return a date object;
     # otherwise, a datetime object is returned.
     custom_start_date = knext.DateTimeParameter(
@@ -260,7 +260,7 @@ class DateRangeParameterGroup:
         condition=knext.OneOf(subject=interval, values=[IntervalOptions.custom.name]),
         effect=knext.Effect.SHOW
     )
-    
+
     custom_end_date = knext.DateTimeParameter(
         label="End",
         description="Limit results to the specified interval end date (inclusive).",
@@ -287,7 +287,7 @@ class AdvancedParameterGroup:
     class DataStateOptions(knext.EnumParameterOptions):
         final = ("Final", "Only include the final data. The data may be delayed by a few days but will not change anymore.")
         all = ("All", "Include fresh data. The results will contain more recent data, which has yet to be finalized and is, thus, subject to change.")
-    
+
     data_state = knext.EnumParameter(
         label="Data State",
         description="Specify the data state of the results.",
@@ -302,7 +302,7 @@ class AdvancedParameterGroup:
         byPage = ("Page", "Aggregate data by page.")
         byProperty = ("Property", "Aggregate data by property.")
         byNewsShowcasePanel = ("NewsShowcasePanel", "Aggregate data by News Showcase Panel.")
-    
+
     aggregation = knext.EnumParameter(
         label="Aggregation Type",
         description="Select the aggregation type. For more information, refer to [Google's documentation](https://support.google.com/webmasters/answer/6155685#urlorsite).",
@@ -347,7 +347,7 @@ class SearchQuery:
     dimension = DimensionParameterGroup()
     advanced = AdvancedParameterGroup()
 
-    
+
     def get_date_range(self):
         if self.date_range.interval == DateRangeParameterGroup.IntervalOptions.custom.name:
             return self.date_range.custom_start_date, self.date_range.custom_end_date
@@ -367,7 +367,7 @@ class SearchQuery:
                 date_delta = 180 - 1
         start_date = end_date - timedelta(days=date_delta)
         return start_date, end_date
-    
+
 
     def get_selected_dimensions(self):
         selected = []
@@ -421,7 +421,7 @@ class SearchQuery:
             new_row.update(copy.deepcopy(row))
             if "keys" in new_row:
                 del new_row["keys"]
-            
+
             new_rows.append(new_row)
 
         return new_rows
@@ -434,7 +434,7 @@ class SearchQuery:
     def execute(self, exec_context, auth_port_object):
         if self.property_type.property is None:
             raise ValueError("No value for 'Property' parameter selected!")
-        
+
         service = build(
             serviceName="searchconsole",
             version="v1",
@@ -540,7 +540,7 @@ class UrlInspection:
     property_inspection_url_column = UrlInspectionPropertyInspectionUrlColumnParameterGroup()
     modules = UrlInspectionModulesParameterGroup()
     advanced = UrlInspectionAdvancedParameterGroup()
-    
+
 
     def configure(self, config_context, auth_port_spec, inspection_url_port_spec):
         pass
@@ -565,9 +565,9 @@ class UrlInspection:
 
         if self.modules.rich_results == True:
             row.update(self.get_rich_results_columns(api_response))
-        
+
         return row
-    
+
 
     # Google's API only includes those parameters in the response for which it returns values.
     # We add defaults to ensure the JSON data contains these keys, even if they have no value set.
@@ -585,7 +585,7 @@ class UrlInspection:
             d[k] = d.get(k, [])
 
         return d
-    
+
 
     def get_index_status_columns(self, api_response):
         isr = api_response.get("inspectionResult", {}).get("indexStatusResult", {})
@@ -597,7 +597,7 @@ class UrlInspection:
             return {
                 "IS: JSON": isr
             }
-        
+
         # Some columns get special handling in terms of formatting
         referring_urls_column = None
         if 0 < len(isr["referringUrls"]):
@@ -619,7 +619,7 @@ class UrlInspection:
             "IS: User Canonical": isr["userCanonical"],
             "IS: Verdict": isr["verdict"]
         }
-    
+
 
     def get_mobile_usability_columns(self, api_response):
         mur = api_response.get("inspectionResult", {}).get("mobileUsabilityResult", {})
@@ -646,7 +646,7 @@ class UrlInspection:
             "MU: Issues": issues_column,
             "MU: Verdict": mur["verdict"]
         }
-    
+
 
     def get_accelerated_mobile_pages_columns(self, api_response):
         ampr = api_response.get("inspectionResult", {}).get("ampResult", {})
@@ -679,7 +679,7 @@ class UrlInspection:
             "AMP: robots.txt State": ampr["robotsTxtState"],
             "AMP: Verdict": ampr["verdict"]
         }
-    
+
 
     def get_rich_results_columns(self, api_response):
         rrr = api_response.get("inspectionResult", {}).get("richResultsResult", {})
@@ -702,9 +702,9 @@ class UrlInspection:
                     "inspectionUrl": url
                 }
             ).execute()
-        
+
         service.close()
-        
+
         return api_response
 
 
@@ -721,7 +721,7 @@ class UrlInspection:
                 + inspection_url_column
                 + "') does not exist in the table connected to the 'URL Table' input port!"
             )
-        
+
         max_workers = 10
         if auth_port_object.get_is_pro() != True:
             max_workers = 1
