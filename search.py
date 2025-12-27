@@ -571,19 +571,25 @@ class UrlInspection:
 
     # Google's API only includes those parameters in the response for which it returns values.
     # We add defaults to ensure the JSON data contains these keys, even if they have no value set.
-    def ensure_keys(self, dict, none_keys=[], list_keys=[]):
+    def ensure_keys(self, d: dict, none_keys=None, list_keys=None):
+        if none_keys is None:
+            none_keys = []
+
+        if list_keys is None:
+            list_keys = []
+
         for k in none_keys:
-            dict[k] = dict.get(k, None)
+            d[k] = d.get(k, None)
 
         for k in list_keys:
-            dict[k] = dict.get(k, [])
+            d[k] = d.get(k, [])
 
-        return dict
+        return d
     
 
     def get_index_status_columns(self, api_response):
         isr = api_response.get("inspectionResult", {}).get("indexStatusResult", {})
-        isr = self.ensure_keys(dict=isr, none_keys=["coverageState", "crawledAs", "googleCanonical",
+        isr = self.ensure_keys(d=isr, none_keys=["coverageState", "crawledAs", "googleCanonical",
             "indexingState", "lastCrawlTime", "pageFetchState", "robotsTxtState", "userCanonical",
             "verdict"], list_keys=["referringUrls", "sitemap"])
 
@@ -617,7 +623,7 @@ class UrlInspection:
 
     def get_mobile_usability_columns(self, api_response):
         mur = api_response.get("inspectionResult", {}).get("mobileUsabilityResult", {})
-        mur = self.ensure_keys(dict=mur, none_keys=["verdict"], list_keys=["issues"])
+        mur = self.ensure_keys(d=mur, none_keys=["verdict"], list_keys=["issues"])
 
         if self.advanced.json == True:
             return {
@@ -644,7 +650,7 @@ class UrlInspection:
 
     def get_accelerated_mobile_pages_columns(self, api_response):
         ampr = api_response.get("inspectionResult", {}).get("ampResult", {})
-        ampr = self.ensure_keys(dict=ampr, none_keys=["ampIndexStatusVerdict", "ampUrl",
+        ampr = self.ensure_keys(d=ampr, none_keys=["ampIndexStatusVerdict", "ampUrl",
                                 "indexingState", "lastCrawlTime", "pageFetchState",
                                 "robotsTxtState", "verdict"], list_keys=["issues"])
 
@@ -677,7 +683,7 @@ class UrlInspection:
 
     def get_rich_results_columns(self, api_response):
         rrr = api_response.get("inspectionResult", {}).get("richResultsResult", {})
-        rrr = self.ensure_keys(dict=rrr, none_keys=["verdict"], list_keys=["detectedItems"])
+        rrr = self.ensure_keys(d=rrr, none_keys=["verdict"], list_keys=["detectedItems"])
 
         return {
             "RR: JSON": rrr
