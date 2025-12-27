@@ -432,7 +432,7 @@ class SearchQuery:
 
 
     def execute(self, exec_context, auth_port_object):
-        if self.property_type.property == None:
+        if self.property_type.property is None:
             raise ValueError("No value for 'Property' parameter selected!")
         
         service = build(
@@ -703,11 +703,11 @@ class UrlInspection:
 
 
     def execute(self, exec_context, auth_port_object, inspection_url_port_object):
-        if self.property_inspection_url_column.property == None:
+        if self.property_inspection_url_column.property is None:
             raise ValueError("No value for 'Property' parameter selected!")
 
         inspection_url_column = self.property_inspection_url_column.inspection_url_column
-        if inspection_url_column == None:
+        if inspection_url_column is None:
             raise ValueError("No value for 'URL Table Column' parameter selected!")
         if inspection_url_column not in inspection_url_port_object.column_names:
             raise ValueError(
