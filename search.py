@@ -192,7 +192,7 @@ class SearchAuthenticator:
         is_pro = False
         if len(self.key.strip()) != 0:
             is_pro = lib.key_management.verify_key(key=self.key.strip())
-        
+
         credentials = lib.credentials.create_new(exec_context=exec_context)
 
         self.set_available_props(exec_context=exec_context, credentials=credentials)
