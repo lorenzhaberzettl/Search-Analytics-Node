@@ -322,7 +322,7 @@ class AdvancedParameterGroup:
 
 
 @knext.node(name="Search Analytics - Query", node_type=knext.NodeType.SOURCE, icon_path="icons/query.png", category=category, keywords=KNIME_NODE_KEYWORDS)
-@knext.input_port(name="Search Analytics Auth Port", description="Recieves authentication credentials from a *Search Analytics - Authenticator* node.", port_type=search_auth_port_type)
+@knext.input_port(name="Search Analytics Auth Port", description="Receives authentication credentials from a *Search Analytics - Authenticator* node.", port_type=search_auth_port_type)
 @knext.output_table(name="Result Table", description="Output table containing search performance metrics based on your selected options.")
 class SearchQuery:
     """Fetches search performance data from the Google Search Console API.
@@ -517,7 +517,7 @@ class UrlInspectionAdvancedParameterGroup:
 
 
 @knext.node(name="Search Analytics - URL Inspection", node_type=knext.NodeType.SOURCE, icon_path="icons/url-inspection.png", category=category, keywords=KNIME_NODE_KEYWORDS)
-@knext.input_port(name="Search Analytics Auth Port", description="Recieves authentication credentials from a *Search Analytics - Authenticator* node.", port_type=search_auth_port_type)
+@knext.input_port(name="Search Analytics Auth Port", description="Receives authentication credentials from a *Search Analytics - Authenticator* node.", port_type=search_auth_port_type)
 @knext.input_table(name="URL Table", description="Input table with URLs to inspect.")
 @knext.output_table(name="Result Table", description="Output table with inspection results for each URL.")
 class UrlInspection:
@@ -795,7 +795,7 @@ class FilterParameterGroup:
 
 
 @knext.node(name="Search Analytics - Property Details", node_type=knext.NodeType.SOURCE, icon_path="icons/url-inspection.png", category=category, keywords=KNIME_NODE_KEYWORDS)
-@knext.input_port(name="Search Analytics Auth Port", description="Recieves authentication credentials from a *Search Analytics - Authenticator* node.", port_type=search_auth_port_type)
+@knext.input_port(name="Search Analytics Auth Port", description="Receives authentication credentials from a *Search Analytics - Authenticator* node.", port_type=search_auth_port_type)
 @knext.output_table(name="Result Table", description="Output table with your Google Search Console properties.")
 class PropertyDetails:
     """Fetches a list of your Google Search Console properties.
