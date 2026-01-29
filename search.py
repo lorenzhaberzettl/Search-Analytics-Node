@@ -807,7 +807,7 @@ class PropertyDetails:
     """Fetches a list of your Google Search Console properties.
     Fetches a list of your **Google Search Console properties** and lets you filter them by property type and verification status. Use it to quickly spot which sites are verified and which still need attention.
 
-    **This is a helper node — optional and not required by the other nodes.**
+    **This is a helper node — optional and not required by the other nodes.** It is intended for exploratory and control-flow use cases, such as driving loops or inspecting available properties during workflow design.
 
     ⚠️ This node requires a connected and executed **Search Analytics - Authenticator** node.
     """
