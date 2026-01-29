@@ -85,7 +85,7 @@ class SearchAuthPortObject(knext.PortObject):
             version = payload["port_version"]
         else:
             version = 1
-        
+
         if version == 2:
             # Version 2 payload structure:
             # {
@@ -124,10 +124,14 @@ search_auth_port_type = knext.port_type(
 
 
 @knext.node(name="Search Analytics - Authenticator", node_type=knext.NodeType.OTHER, icon_path="icons/authenticator.png", category=category, keywords=KNIME_NODE_KEYWORDS)
-@knext.output_port(name="Search Analytics Auth Port", description="Emits authentication credentials for downstream use.", port_type=search_auth_port_type)
+@knext.output_port(name="Search Analytics Auth Port", description="Emits authentication credentials for downstream nodes.", port_type=search_auth_port_type)
 class SearchAuthenticator:
-    """This node allows you to authenticate yourself with Google.
-    Authenticate yourself with Google by executing this node. A browser window will open to guide you through the process.
+    """Connects your Google account with your workflow.
+    Connects your Google account with your workflow.
+
+    When executed, this node opens a browser window where you **sign in and grant access**.
+
+    The node outputs authentication credentials that other Search Analytics nodes use to fetch data.
     """
 
 
@@ -162,22 +166,24 @@ class SearchAuthenticator:
             version="v1",
             credentials=credentials
         )
-        
+
         sites_list_result = service.sites().list().execute()
-        
+
         service.close()
 
-        if "siteEntry" not in sites_list_result:
-            raise RuntimeError("The selected Google account does not have any Search Console properties.")
+        site_entries = sites_list_result.get("siteEntry", [])
+
+        if len(site_entries) == 0:
+            exec_context.set_warning("The selected Google account does not have any Search Console properties.")
 
         available_props = []
-        for e in sites_list_result["siteEntry"]:
-            if "unverified" in e["permissionLevel"].lower():
+        for e in site_entries:
+            if "unverified".casefold() in e["permissionLevel"].casefold():
                 continue
             available_props.append(e["siteUrl"])
-        
-        if len(available_props) == 0:
-            raise RuntimeError("The selected Google Account does not have any verified Search Console properties. Verify your property and then execute again.")
+
+        if len(site_entries) > 0 and len(available_props) == 0:
+            exec_context.set_warning("The selected Google Account does not have any verified Search Console properties. Verify your property and then execute again.")
 
         exec_context.flow_variables["available_props"] = available_props
 
@@ -186,7 +192,7 @@ class SearchAuthenticator:
         is_pro = False
         if len(self.key.strip()) != 0:
             is_pro = lib.key_management.verify_key(key=self.key.strip())
-        
+
         credentials = lib.credentials.create_new(exec_context=exec_context)
 
         self.set_available_props(exec_context=exec_context, credentials=credentials)
@@ -214,7 +220,7 @@ class PropertyTypeParameterGroup:
         news = ("News", "Only *Google Search \"News\"* tab traffic.")
         image = ("Image", "Only *Google Search \"Images\"* tab traffic.")
         video = ("Video", "Only *Google Search \"Videos\"* tab traffic.")
-    
+
     type = knext.EnumParameter(
         label="Search Type",
         description="Limit results to the specified type.",
@@ -242,7 +248,7 @@ class DateRangeParameterGroup:
         since_version="1.1.0",
         style=knext.EnumParameter.Style.DROPDOWN
     )
-    
+
     # If the show_time parameter is set to False, DateTimeParameter will return a date object;
     # otherwise, a datetime object is returned.
     custom_start_date = knext.DateTimeParameter(
@@ -254,7 +260,7 @@ class DateRangeParameterGroup:
         condition=knext.OneOf(subject=interval, values=[IntervalOptions.custom.name]),
         effect=knext.Effect.SHOW
     )
-    
+
     custom_end_date = knext.DateTimeParameter(
         label="End",
         description="Limit results to the specified interval end date (inclusive).",
@@ -281,7 +287,7 @@ class AdvancedParameterGroup:
     class DataStateOptions(knext.EnumParameterOptions):
         final = ("Final", "Only include the final data. The data may be delayed by a few days but will not change anymore.")
         all = ("All", "Include fresh data. The results will contain more recent data, which has yet to be finalized and is, thus, subject to change.")
-    
+
     data_state = knext.EnumParameter(
         label="Data State",
         description="Specify the data state of the results.",
@@ -296,7 +302,7 @@ class AdvancedParameterGroup:
         byPage = ("Page", "Aggregate data by page.")
         byProperty = ("Property", "Aggregate data by property.")
         byNewsShowcasePanel = ("NewsShowcasePanel", "Aggregate data by News Showcase Panel.")
-    
+
     aggregation = knext.EnumParameter(
         label="Aggregation Type",
         description="Select the aggregation type. For more information, refer to [Google's documentation](https://support.google.com/webmasters/answer/6155685#urlorsite).",
@@ -316,11 +322,23 @@ class AdvancedParameterGroup:
 
 
 @knext.node(name="Search Analytics - Query", node_type=knext.NodeType.SOURCE, icon_path="icons/query.png", category=category, keywords=KNIME_NODE_KEYWORDS)
-@knext.input_port(name="Search Analytics Auth Port", description="Recieves authentication credentials from a *Search Analytics - Authenticator* node.", port_type=search_auth_port_type)
-@knext.output_table(name="Result Table", description="Output table with search impressions, clicks, position, and other details, based on the node's configuration.")
+@knext.input_port(name="Search Analytics Auth Port", description="Receives authentication credentials from a *Search Analytics - Authenticator* node.", port_type=search_auth_port_type)
+@knext.output_table(name="Result Table", description="Output table containing search performance metrics based on your selected options.")
 class SearchQuery:
-    """Retrieve detailed search performance data from the Google Search Console API.
-    This node fetches data from the Google Search Console API. It returns information like search impressions, clicks, position, query string, and more.\n\nBefore use, an Authenticator node must be connected and executed.
+    """Fetches search performance data from the Google Search Console API.
+    Fetches **search performance data** from the Google Search Console API.
+
+    Use this node to retrieve metrics such as:
+
+    - Impressions
+    - Clicks
+    - Position
+    - Search queries
+    - Pages
+    - Countries
+    - Devices, and more
+
+    ⚠️ This node requires a connected and executed **Search Analytics - Authenticator** node.
     """
 
 
@@ -329,7 +347,7 @@ class SearchQuery:
     dimension = DimensionParameterGroup()
     advanced = AdvancedParameterGroup()
 
-    
+
     def get_date_range(self):
         if self.date_range.interval == DateRangeParameterGroup.IntervalOptions.custom.name:
             return self.date_range.custom_start_date, self.date_range.custom_end_date
@@ -349,7 +367,7 @@ class SearchQuery:
                 date_delta = 180 - 1
         start_date = end_date - timedelta(days=date_delta)
         return start_date, end_date
-    
+
 
     def get_selected_dimensions(self):
         selected = []
@@ -403,7 +421,7 @@ class SearchQuery:
             new_row.update(copy.deepcopy(row))
             if "keys" in new_row:
                 del new_row["keys"]
-            
+
             new_rows.append(new_row)
 
         return new_rows
@@ -414,9 +432,9 @@ class SearchQuery:
 
 
     def execute(self, exec_context, auth_port_object):
-        if self.property_type.property == None:
+        if self.property_type.property is None:
             raise ValueError("No value for 'Property' parameter selected!")
-        
+
         service = build(
             serviceName="searchconsole",
             version="v1",
@@ -499,19 +517,30 @@ class UrlInspectionAdvancedParameterGroup:
 
 
 @knext.node(name="Search Analytics - URL Inspection", node_type=knext.NodeType.SOURCE, icon_path="icons/url-inspection.png", category=category, keywords=KNIME_NODE_KEYWORDS)
-@knext.input_port(name="Search Analytics Auth Port", description="Recieves authentication credentials from a *Search Analytics - Authenticator* node.", port_type=search_auth_port_type)
+@knext.input_port(name="Search Analytics Auth Port", description="Receives authentication credentials from a *Search Analytics - Authenticator* node.", port_type=search_auth_port_type)
 @knext.input_table(name="URL Table", description="Input table with URLs to inspect.")
-@knext.output_table(name="Result Table", description="Output table with details on inspected URLs' Index Status, Mobile Usability, Accelerated Mobile Pages, and Rich Results, based on the node's configuration.")
+@knext.output_table(name="Result Table", description="Output table with inspection results for each URL.")
 class UrlInspection:
-    """Retrieve detailed indexing information and issues from the Google Search Console URL Inspection API.
-    This node fetches data from the URL Inspection API, which is part of the Google Search Console. It returns information on the Index Status, Mobile Usability, Accelerated Mobile Pages, and Rich Results.\n\n**Google allows inspecting up to 2,000 URLs per property each day.** Once you reach that limit, any additional requests will fail with a *'quota exceeded'* error. Your quota automatically resets every 24 hours.\n\nBefore use, an Authenticator node must be connected and executed.
+    """Fetches URL-level diagnostics using the Google Search Console URL Inspection API.
+    Fetches **URL-level diagnostics** using the Google Search Console URL Inspection API.
+
+    For each URL, this node returns details such as:
+
+    - Index Status
+    - Mobile Usability
+    - Accelerated Mobile Pages
+    - Rich Results
+
+    Google allows up to **2,000 URL inspections per property each day**. If you exceed this limit, subsequent requests will fail with a *quota-exceeded* error. The quota resets automatically every 24 hours.
+
+    ⚠️ This node requires a connected and executed **Search Analytics - Authenticator** node.
     """
 
 
     property_inspection_url_column = UrlInspectionPropertyInspectionUrlColumnParameterGroup()
     modules = UrlInspectionModulesParameterGroup()
     advanced = UrlInspectionAdvancedParameterGroup()
-    
+
 
     def configure(self, config_context, auth_port_spec, inspection_url_port_spec):
         pass
@@ -536,25 +565,31 @@ class UrlInspection:
 
         if self.modules.rich_results == True:
             row.update(self.get_rich_results_columns(api_response))
-        
+
         return row
-    
+
 
     # Google's API only includes those parameters in the response for which it returns values.
     # We add defaults to ensure the JSON data contains these keys, even if they have no value set.
-    def ensure_keys(self, dict, none_keys=[], list_keys=[]):
+    def ensure_keys(self, d: dict, none_keys=None, list_keys=None):
+        if none_keys is None:
+            none_keys = []
+
+        if list_keys is None:
+            list_keys = []
+
         for k in none_keys:
-            dict[k] = dict.get(k, None)
+            d[k] = d.get(k, None)
 
         for k in list_keys:
-            dict[k] = dict.get(k, [])
+            d[k] = d.get(k, [])
 
-        return dict
-    
+        return d
+
 
     def get_index_status_columns(self, api_response):
         isr = api_response.get("inspectionResult", {}).get("indexStatusResult", {})
-        isr = self.ensure_keys(dict=isr, none_keys=["coverageState", "crawledAs", "googleCanonical",
+        isr = self.ensure_keys(d=isr, none_keys=["coverageState", "crawledAs", "googleCanonical",
             "indexingState", "lastCrawlTime", "pageFetchState", "robotsTxtState", "userCanonical",
             "verdict"], list_keys=["referringUrls", "sitemap"])
 
@@ -562,7 +597,7 @@ class UrlInspection:
             return {
                 "IS: JSON": isr
             }
-        
+
         # Some columns get special handling in terms of formatting
         referring_urls_column = None
         if 0 < len(isr["referringUrls"]):
@@ -584,11 +619,11 @@ class UrlInspection:
             "IS: User Canonical": isr["userCanonical"],
             "IS: Verdict": isr["verdict"]
         }
-    
+
 
     def get_mobile_usability_columns(self, api_response):
         mur = api_response.get("inspectionResult", {}).get("mobileUsabilityResult", {})
-        mur = self.ensure_keys(dict=mur, none_keys=["verdict"], list_keys=["issues"])
+        mur = self.ensure_keys(d=mur, none_keys=["verdict"], list_keys=["issues"])
 
         if self.advanced.json == True:
             return {
@@ -611,11 +646,11 @@ class UrlInspection:
             "MU: Issues": issues_column,
             "MU: Verdict": mur["verdict"]
         }
-    
+
 
     def get_accelerated_mobile_pages_columns(self, api_response):
         ampr = api_response.get("inspectionResult", {}).get("ampResult", {})
-        ampr = self.ensure_keys(dict=ampr, none_keys=["ampIndexStatusVerdict", "ampUrl",
+        ampr = self.ensure_keys(d=ampr, none_keys=["ampIndexStatusVerdict", "ampUrl",
                                 "indexingState", "lastCrawlTime", "pageFetchState",
                                 "robotsTxtState", "verdict"], list_keys=["issues"])
 
@@ -644,11 +679,11 @@ class UrlInspection:
             "AMP: robots.txt State": ampr["robotsTxtState"],
             "AMP: Verdict": ampr["verdict"]
         }
-    
+
 
     def get_rich_results_columns(self, api_response):
         rrr = api_response.get("inspectionResult", {}).get("richResultsResult", {})
-        rrr = self.ensure_keys(dict=rrr, none_keys=["verdict"], list_keys=["detectedItems"])
+        rrr = self.ensure_keys(d=rrr, none_keys=["verdict"], list_keys=["detectedItems"])
 
         return {
             "RR: JSON": rrr
@@ -667,18 +702,18 @@ class UrlInspection:
                     "inspectionUrl": url
                 }
             ).execute()
-        
+
         service.close()
-        
+
         return api_response
 
 
     def execute(self, exec_context, auth_port_object, inspection_url_port_object):
-        if self.property_inspection_url_column.property == None:
+        if self.property_inspection_url_column.property is None:
             raise ValueError("No value for 'Property' parameter selected!")
 
         inspection_url_column = self.property_inspection_url_column.inspection_url_column
-        if inspection_url_column == None:
+        if inspection_url_column is None:
             raise ValueError("No value for 'URL Table Column' parameter selected!")
         if inspection_url_column not in inspection_url_port_object.column_names:
             raise ValueError(
@@ -686,7 +721,7 @@ class UrlInspection:
                 + inspection_url_column
                 + "') does not exist in the table connected to the 'URL Table' input port!"
             )
-        
+
         max_workers = 10
         if auth_port_object.get_is_pro() != True:
             max_workers = 1
@@ -732,4 +767,124 @@ class UrlInspection:
         return knext.Table.from_pandas(
             data=pandas.DataFrame(data=rows),
             row_ids="auto"
+        )
+
+
+@knext.parameter_group(label="Filter")
+class FilterParameterGroup:
+    class TypeFilterOptions(knext.EnumParameterOptions):
+        all = ("Any", "No filtering by property type.")
+        urlprefix = ("URL-Prefix Only", "Show only URL-Prefix properties.")
+        domain = ("Domain Only", "Show only Domain properties.")
+
+    type_filter = knext.EnumParameter(
+        label="Property Type",
+        description="Limit results by property type.",
+        default_value=TypeFilterOptions.all.name,
+        enum=TypeFilterOptions,
+        style=knext.EnumParameter.Style.DROPDOWN,
+    )
+
+
+    class VerificationFilterOptions(knext.EnumParameterOptions):
+        all = ("Any", "No filtering by verification status.")
+        verified = ("Verified Only", "Show only verified properties.")
+        unverified = ("Unverified Only", "Show only unverified properties.")
+
+    verification_filter = knext.EnumParameter(
+        label="Verification Status",
+        description="Limit results by verification status.",
+        default_value=VerificationFilterOptions.all.name,
+        enum=VerificationFilterOptions,
+        style=knext.EnumParameter.Style.DROPDOWN,
+    )
+
+
+@knext.node(name="Search Analytics - Property Details", node_type=knext.NodeType.SOURCE, icon_path="icons/url-inspection.png", category=category, keywords=KNIME_NODE_KEYWORDS)
+@knext.input_port(name="Search Analytics Auth Port", description="Receives authentication credentials from a *Search Analytics - Authenticator* node.", port_type=search_auth_port_type)
+@knext.output_table(name="Result Table", description="Output table with your Google Search Console properties.")
+class PropertyDetails:
+    """Fetches a list of your Google Search Console properties.
+    Fetches a list of your **Google Search Console properties** and lets you filter them by property type and verification status. Use it to quickly spot which sites are verified and which still need attention.
+
+    **This is a helper node — optional and not required by the other nodes.** It is intended for exploratory and control-flow use cases, such as driving loops or inspecting available properties during workflow design.
+
+    ⚠️ This node requires a connected and executed **Search Analytics - Authenticator** node.
+    """
+
+
+    filters = FilterParameterGroup()
+
+    output_df_schema = {
+        "Site URL": "string",
+        "Property Type": "string",
+        "Permission Level": "string",
+        "Verified": "boolean",
+    }
+
+
+    def configure(self, config_context, auth_port_spec):
+        pass
+
+
+    def execute(self, exec_context, auth_port_object):
+        credentials = lib.credentials.parse_json(auth_port_object.get_credentials())
+
+        service = build(
+            serviceName="searchconsole", version="v1", credentials=credentials
+        )
+
+        sites_list_result = service.sites().list().execute()
+
+        service.close()
+
+        rows = pandas.DataFrame(
+            {
+                col: pandas.Series(dtype=dtype)
+                for col, dtype in self.output_df_schema.items()
+            }
+        )
+
+        if "siteEntry" not in sites_list_result:
+            exec_context.set_warning(
+                "The selected Google account does not have any Search Console properties."
+            )
+        else:
+            for e in sites_list_result["siteEntry"]:
+                site_url = e["siteUrl"]
+                permission_level = e["permissionLevel"]
+                is_domain_property = site_url.startswith("sc-domain:")
+                is_verified = "unverified".casefold() not in permission_level.casefold()
+
+                if (
+                    self.filters.type_filter
+                    == self.filters.TypeFilterOptions.urlprefix.name
+                    and is_domain_property
+                ) or (
+                    self.filters.type_filter
+                    == self.filters.TypeFilterOptions.domain.name
+                    and not is_domain_property
+                ):
+                    continue
+
+                if (
+                    self.filters.verification_filter
+                    == self.filters.VerificationFilterOptions.verified.name
+                    and not is_verified
+                ) or (
+                    self.filters.verification_filter
+                    == self.filters.VerificationFilterOptions.unverified.name
+                    and is_verified
+                ):
+                    continue
+
+                rows.loc[len(rows)] = {
+                    "Site URL": site_url,
+                    "Property Type": "Domain" if is_domain_property else "URL-Prefix",
+                    "Permission Level": permission_level,
+                    "Verified": is_verified,
+                }
+
+        return knext.Table.from_pandas(
+            data=rows.astype(self.output_df_schema), row_ids="auto"
         )
