@@ -36,7 +36,7 @@ def get_schema(dialog_creation_context):
                 metadata={"preferred_value_type": "", "displayed_column_type": ""}
             )
         )
-    
+
     return knext.Schema.from_columns(columns=columns)
 
 
