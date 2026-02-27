@@ -3,7 +3,7 @@ author: "Vitus Haberzettl, Lorenz Haberzettl"
 pixi_toml_path: "./pixi.toml"
 extension_module: "search"
 description: "Search Analytics Node"
-long_description: "Import data from **Google Search Console** directly into **KNIME**.\n\nThis extension gives you ready-to-use nodes for authentication, search performance data, and URL inspection — no custom scripting required.\n\nLearn more at: https://searchanalyticsnode.com/"
+long_description: "Import data from Google Search Console directly into KNIME.\n\nThis extension gives you ready-to-use nodes for authentication, search performance data, and URL inspection — no custom scripting required.\n\nLearn more at: https://searchanalyticsnode.com/"
 group_id: "com.searchanalyticsnode"
 version: 1.8.0
 vendor: "Vitus and Lorenz Haberzettl"
