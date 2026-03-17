@@ -110,7 +110,7 @@ def _run_local_server(queue, client_config, scopes):
             host="127.0.0.1",
             port=_get_free_port(),
             authorization_prompt_message=None,
-            success_message="Authorized successfully.\n\nRevoke access of this application to your Google Account anytime at https://myaccount.google.com/connections\n\nHeads up! Your authentication details are saved in your workflow. If you share a workflow with an executed Authenticator node, anyone who has access to the workflow can use it to run queries on your Google Search Console properties.\n\nYou can close this window now.",
+            success_message="Authorization successful.\n\nRevoke this application's access to your Google Account anytime at https://myaccount.google.com/connections\n\nHeads up! Your authentication details are stored in your workflow. If you share a workflow that contains an executed Authenticator node, anyone with access to it can run queries on your Google Search Console properties. To avoid this, reset the Authenticator node before sharing.\n\nYou can now close this window.",
             open_browser=True,
             timeout_seconds=None,
         )

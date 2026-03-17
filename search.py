@@ -800,7 +800,7 @@ class FilterParameterGroup:
     )
 
 
-@knext.node(name="Search Analytics - Property Details", node_type=knext.NodeType.SOURCE, icon_path="icons/url-inspection.png", category=category, keywords=KNIME_NODE_KEYWORDS)
+@knext.node(name="Search Analytics - Property Details", node_type=knext.NodeType.SOURCE, icon_path="icons/property-details.png", category=category, keywords=KNIME_NODE_KEYWORDS)
 @knext.input_port(name="Search Analytics Auth Port", description="Receives authentication credentials from a *Search Analytics - Authenticator* node.", port_type=search_auth_port_type)
 @knext.output_table(name="Result Table", description="Output table with your Google Search Console properties.")
 class PropertyDetails:
