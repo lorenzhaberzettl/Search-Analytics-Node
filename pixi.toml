@@ -1,6 +1,6 @@
 [workspace]
 channels = ["knime", "conda-forge"]
-platforms = ["win-64", "linux-64", "osx-64", "osx-arm64"]
+platforms = ["win-64", "linux-64", "osx-arm64"]
 
 [tasks]
 test = { cmd = "pytest" }
