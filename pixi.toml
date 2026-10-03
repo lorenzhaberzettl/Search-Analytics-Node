@@ -1,6 +1,6 @@
 [workspace]
 channels = ["knime", "conda-forge"]
-platforms = ["win-64", "linux-64", "osx-arm64"]
+platforms = ["win-64", "linux-64", "osx-64", "osx-arm64"]
 
 [tasks]
 test = { cmd = "pytest" }
@@ -13,10 +13,11 @@ ruff = "*"
 knime-extension = "*"
 knime-python-base = "*"
 knime-python-versions = "5.12.*"
+cryptography = "*" # conda-forge; PyPI dropped Intel Mac wheels at 49
 
 [pypi-dependencies]
-google-api-python-client = "==2.198.0"
-google-auth-oauthlib = "==1.4.0"
+google-api-python-client = "==2.201.0"
+google-auth-oauthlib = "==1.5.0"
 psutil = "==7.2.2"
 requests = "==2.34.2"
 
