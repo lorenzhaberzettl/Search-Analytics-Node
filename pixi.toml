@@ -13,6 +13,7 @@ ruff = "*"
 knime-extension = "*"
 knime-python-base = "*"
 knime-python-versions = "5.12.*"
+cryptography = "*" # conda-forge; PyPI dropped Intel Mac wheels at 49
 
 [pypi-dependencies]
 google-api-python-client = "==2.201.0"
