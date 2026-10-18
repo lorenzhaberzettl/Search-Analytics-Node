@@ -338,6 +338,8 @@ class SearchQuery:
     - Countries
     - Devices, and more
 
+    Google provides search performance data for the **last 16 months** only. If you select a custom interval that starts earlier, the results may be incomplete.
+
     ⚠️ This node requires a connected and executed **Search Analytics - Authenticator** node.
     """
 
