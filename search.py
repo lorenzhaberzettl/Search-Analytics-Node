@@ -253,7 +253,7 @@ class DateRangeParameterGroup:
     # otherwise, a datetime object is returned.
     custom_start_date = knext.DateTimeParameter(
         label="Start",
-        description="Limit results to the specified interval start date (inclusive).",
+        description="Limit results to the specified interval start date (inclusive).\n\n**Note:** Google provides search performance data for the last 16 months only. If you select an earlier start date, the results may be incomplete.",
         default_value=datetime(year=datetime.now(tz=timezone.utc).year, month=1, day=1),
         show_time=False
     ).rule(
