@@ -429,13 +429,26 @@ class SearchQuery:
         return new_rows
 
 
+    # Google provides the last 16 months of data, but the exact cutoff is not documented,
+    # so we already warn from about 15.5 months on.
+    def warn_if_near_retention_limit(self, context):
+        start_date, _ = self.get_date_range()
+        today = datetime.now(tz=timezone.utc).date()
+        if start_date < today - timedelta(days=15.5 * 30):
+            context.set_warning(
+                "The Google Search Console API only keeps the last 16 months of data. Your start date is near or past that limit, so the earliest days may be missing."
+            )
+
+
     def configure(self, config_context, auth_port_spec):
-        pass
+        self.warn_if_near_retention_limit(config_context)
 
 
     def execute(self, exec_context, auth_port_object):
         if self.property_type.property is None:
             raise ValueError("No value for 'Property' parameter selected!")
+
+        self.warn_if_near_retention_limit(exec_context)
 
         service = build(
             serviceName="searchconsole",
