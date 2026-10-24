@@ -23,6 +23,10 @@ The Search Console web interface shows and exports at most 1,000 rows per report
 - **Private by design.** View-only access, and your data goes straight from Google to your computer. See [Privacy & Security](#privacy--security).
 
 
+> [!TIP]
+> **New to the extension?** [Download the demo workflow](https://searchanalyticsnode.com/assets/workflows/Search%20Analytics%20Node%20-%20Demo%20Workflow.knwf) and open it in KNIME. It walks you through every node step by step. Want a quick look first? [View a screenshot of the demo workflow](https://searchanalyticsnode.com/assets/workflows/Search%20Analytics%20Node%20-%20Demo%20Workflow.webp).
+
+
 ## Nodes
 
 | Icon | Name | Description |
