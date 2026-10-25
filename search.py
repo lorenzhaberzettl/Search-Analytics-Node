@@ -279,7 +279,7 @@ class DimensionParameterGroup:
     device = knext.BoolParameter(label="Device", description="Break down the results by device.", default_value=False)
     page = knext.BoolParameter(label="Page", description="Break down the results by page.", default_value=False)
     query = knext.BoolParameter(label="Query", description="Break down the results by query.", default_value=False)
-    search_appearance = knext.BoolParameter(label="Search Appearance", description="Break down the results by search appearance.", default_value=False)
+    search_appearance = knext.BoolParameter(label="Search Appearance", description="Break down the results by search appearance.\n\n**Note:** Google doesn't allow combining Search Appearance with other dimensions. To use it, uncheck all other dimensions.", default_value=False)
 
 
 @knext.parameter_group(label="Advanced", is_advanced=True)
@@ -440,7 +440,17 @@ class SearchQuery:
             )
 
 
+    # Google's API rejects requests that group by search appearance together with other dimensions.
+    def validate_dimensions(self):
+        dimensions = self.get_selected_dimensions()
+        if "searchAppearance" in dimensions and len(dimensions) > 1:
+            raise knext.InvalidParametersError(
+                "Google doesn't allow combining Search Appearance with other dimensions. Either select only Search Appearance, or uncheck it and select any combination of the other dimensions."
+            )
+
+
     def configure(self, config_context, auth_port_spec):
+        self.validate_dimensions()
         self.warn_if_near_retention_limit(config_context)
 
 
