@@ -444,7 +444,7 @@ class SearchQuery:
     def validate_dimensions(self):
         dimensions = self.get_selected_dimensions()
         if "searchAppearance" in dimensions and len(dimensions) > 1:
-            raise knext.InvalidParametersError(
+            raise ValueError(
                 "Google doesn't allow combining Search Appearance with other dimensions. Either select only Search Appearance, or uncheck it and select any combination of the other dimensions."
             )
 
