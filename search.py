@@ -449,8 +449,17 @@ class SearchQuery:
             )
 
 
+    def validate_date_range(self):
+        start_date, end_date = self.get_date_range()
+        if start_date > end_date:
+            raise ValueError(
+                "The start date is after the end date. Please choose a start date that is on or before the end date."
+            )
+
+
     def configure(self, config_context, auth_port_spec):
         self.validate_dimensions()
+        self.validate_date_range()
         self.warn_if_near_retention_limit(config_context)
 
 
