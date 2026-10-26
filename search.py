@@ -254,7 +254,8 @@ class DateRangeParameterGroup:
     custom_start_date = knext.DateTimeParameter(
         label="Start",
         description="Limit results to the specified interval start date (inclusive).\n\n**Note:** Google provides search performance data for the last 16 months only. If you select an earlier start date, the results may be incomplete.",
-        default_value=datetime(year=datetime.now(tz=timezone.utc).year, month=1, day=1),
+        # Use the end date's year, not today's: on January 1-3 the end date is still in last year.
+        default_value=datetime(year=(datetime.now(tz=timezone.utc) - timedelta(days=3)).year, month=1, day=1),
         show_time=False
     ).rule(
         condition=knext.OneOf(subject=interval, values=[IntervalOptions.custom.name]),
