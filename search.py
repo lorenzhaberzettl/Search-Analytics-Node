@@ -518,7 +518,7 @@ class SearchQuery:
             and (self.advanced.row_limit == 0 or self.advanced.row_limit > 100000)
         ):
             exec_context.set_warning(
-                "You've reached the 100,000 row limit. Want more? Enter a valid license key in the Authenticator node to unlock the complete dataset."
+                "You've reached the 100,000 row limit. Want more? Enter a valid license key in the Authenticator node to remove this limit and fetch every row Google's API returns."
             )
 
         return knext.Table.from_pandas(
