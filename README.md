@@ -14,9 +14,9 @@
   <a href="https://github.com/lorenzhaberzettl/Search-Analytics-Node/releases">Releases</a>
 </p>
 
-The Search Console web interface shows and exports at most 1,000 rows per report. Search Analytics Node connects KNIME directly to the official Google Search Console API, so you get the data behind those reports at full scale and can blend it with anything else in your workflows.
+The Search Console web interface shows and exports at most 1,000 rows per report. Search Analytics Node connects KNIME directly to the official Google Search Console API, so you can go well beyond that limit and blend the data with anything else in your workflows.
 
-- **More data than the UI.** Up to 100,000 rows per query for free, or the complete dataset with [Pro](https://searchanalyticsnode.com/#section-pro).
+- **More data than the UI.** Up to 100,000 rows per query for free, or every row Google's API returns with [Pro](https://searchanalyticsnode.com/#section-pro). Google itself caps the API at 50,000 rows per day, per search type, per property.
 - **Flexible breakdowns.** Combine date, country, device, page, and query in a single query. Search appearance is available as a separate breakdown.
 - **Bulk URL inspection.** Index status, last crawl time, canonicals, and rich results for up to 2,000 URLs per property per day.
 - **Repeatable.** Re-run or schedule a workflow instead of exporting reports by hand.
