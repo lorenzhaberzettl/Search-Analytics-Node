@@ -167,9 +167,10 @@ class SearchAuthenticator:
             credentials=credentials
         )
 
-        sites_list_result = service.sites().list().execute()
-
-        service.close()
+        try:
+            sites_list_result = service.sites().list().execute()
+        finally:
+            service.close()
 
         site_entries = sites_list_result.get("siteEntry", [])
 
@@ -735,14 +736,15 @@ class UrlInspection:
             credentials=credentials
         )
 
-        api_response = service.urlInspection().index().inspect(
-                body={
-                    "siteUrl": property,
-                    "inspectionUrl": url
-                }
-            ).execute()
-
-        service.close()
+        try:
+            api_response = service.urlInspection().index().inspect(
+                    body={
+                        "siteUrl": property,
+                        "inspectionUrl": url
+                    }
+                ).execute()
+        finally:
+            service.close()
 
         return api_response
 
@@ -873,9 +875,10 @@ class PropertyDetails:
             serviceName="searchconsole", version="v1", credentials=credentials
         )
 
-        sites_list_result = service.sites().list().execute()
-
-        service.close()
+        try:
+            sites_list_result = service.sites().list().execute()
+        finally:
+            service.close()
 
         rows = pandas.DataFrame(
             {
