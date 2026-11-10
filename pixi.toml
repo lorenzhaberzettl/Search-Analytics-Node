@@ -20,7 +20,7 @@ knime-python-versions = "5.13.*"
 cryptography = "*"
 
 [pypi-dependencies]
-google-api-python-client = "==2.201.0"
+google-api-python-client = "==2.202.0"
 google-auth-oauthlib = "==1.5.0"
 psutil = "==7.2.2"
 requests = "==2.34.2"
