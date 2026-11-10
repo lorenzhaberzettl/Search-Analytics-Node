@@ -796,7 +796,7 @@ class UrlInspection:
                 
                 rows.append(
                     self.build_row(
-                        url=inspection_url_series[len(rows)], api_response=api_response
+                        url=inspection_url_series.iloc[len(rows)], api_response=api_response
                     )
                 )
 
