@@ -484,10 +484,14 @@ class SearchQuery:
             user_row_limit = 100000
 
         i = 0
-        while True:
-            start_row = i * api_row_limit
+        try:
+            while True:
+                if exec_context.is_canceled() == True:
+                    raise RuntimeError("Execution was canceled.")
 
-            exec_context.set_progress(
+                start_row = i * api_row_limit
+
+                exec_context.set_progress(
                 (start_row / user_row_limit) if user_row_limit != 0 else 0.5,
                 "Fetched " + str(start_row) + " rows and counting ...",
             )
@@ -507,10 +511,10 @@ class SearchQuery:
             if len(new_rows) < api_row_limit:
                 break
 
-            i += 1
-            time.sleep(lib.api_request_delay.get(i))
-
-        service.close()
+                i += 1
+                time.sleep(lib.api_request_delay.get(i))
+        finally:
+            service.close()
 
         if (
             auth_port_object.get_is_pro() != True
