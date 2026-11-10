@@ -493,24 +493,24 @@ class SearchQuery:
                 start_row = i * api_row_limit
 
                 exec_context.set_progress(
-                (start_row / user_row_limit) if user_row_limit != 0 else 0.5,
-                "Fetched " + str(start_row) + " rows and counting ...",
-            )
+                    (start_row / user_row_limit) if user_row_limit != 0 else 0.5,
+                    "Fetched " + str(start_row) + " rows and counting ...",
+                )
 
-            api_response = service.searchanalytics().query(
-                siteUrl=self.property_type.property,
-                body=self.get_request_body(row_limit=api_row_limit, start_row=start_row)
-            ).execute()
+                api_response = service.searchanalytics().query(
+                    siteUrl=self.property_type.property,
+                    body=self.get_request_body(row_limit=api_row_limit, start_row=start_row)
+                ).execute()
 
-            new_rows = self.parse_response(api_response)
-            rows += new_rows
+                new_rows = self.parse_response(api_response)
+                rows += new_rows
 
-            if user_row_limit != 0 and user_row_limit <= len(rows):
-                rows = rows[:user_row_limit]
-                break
+                if user_row_limit != 0 and user_row_limit <= len(rows):
+                    rows = rows[:user_row_limit]
+                    break
 
-            if len(new_rows) < api_row_limit:
-                break
+                if len(new_rows) < api_row_limit:
+                    break
 
                 i += 1
                 time.sleep(lib.api_request_delay.get(i))
