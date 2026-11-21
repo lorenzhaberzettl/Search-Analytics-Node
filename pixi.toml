@@ -1,5 +1,5 @@
 [workspace]
-channels = ["knime/label/nightly", "knime", "conda-forge"]
+channels = ["knime", "conda-forge"]
 # knime-extension-bundling packs all four KNIME platforms and fails on a lockfile that lacks one.
 platforms = ["win-64", "linux-64", "osx-64", "osx-arm64"]
 
@@ -11,9 +11,9 @@ format = { cmd = "ruff format ." }
 python = "*"
 pytest = "*"
 ruff = "*"
-knime-extension = "5.13.*"
-knime-python-base = "5.13.*"
-knime-python-versions = "5.13.*"
+knime-extension = "*"
+knime-python-base = "*"
+knime-python-versions = "5.12.*"
 # cryptography (pulled in via google-auth) has no macOS x86_64 wheel on PyPI any more, so the PyPI
 # resolver falls back to its sdist on osx-64, which knime-extension-bundling cannot pack.
 # Taking it from conda-forge satisfies the PyPI dependency with a binary build on every platform.
@@ -27,13 +27,13 @@ requests = "==2.34.2"
 
 [feature.build.dependencies]
 python = "*"
-knime-extension-bundling = "6.1.*"
+knime-extension-bundling = "5.12.*"
 
 [feature.debug.dependencies]
 debugpy = "*"
 
 [feature.build.tasks]
-build = { args = [{ "arg" = "dest", "default" = "./local-update-site" }], cmd = "build-python-extension . {{ dest }} --disable-strict-enforcement --update-sites-version nightly"}
+build = { args = [{ "arg" = "dest", "default" = "./local-update-site" }], cmd = "build-python-extension . {{ dest }} --update-sites-version 5.12"}
 register-debug-in-knime = { description = "Register the current KNIME extension with a KNIME installation. Usage: 'pixi run register-debug-in-knime' (default locations) or 'pixi run register-debug-in-knime C:/' (search entire C: drive if no executables found). Note windows paths should not end with \\ (backslash)", args = [
                 { "arg" = "search_path", "default" = "" }], cmd = "register-debug-in-knime{% if search_path %} --search-path \"{{ search_path }}\"{% endif %}" }
 
