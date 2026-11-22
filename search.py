@@ -1,5 +1,5 @@
 # Copyright 2024 Vitus Haberzettl
-# Copyright 2024, 2025 Lorenz Haberzettl
+# Copyright 2024, 2025, 2026 Lorenz Haberzettl
 #
 #
 # This file is part of Search Analytics Node.
@@ -167,9 +167,10 @@ class SearchAuthenticator:
             credentials=credentials
         )
 
-        sites_list_result = service.sites().list().execute()
-
-        service.close()
+        try:
+            sites_list_result = service.sites().list().execute()
+        finally:
+            service.close()
 
         site_entries = sites_list_result.get("siteEntry", [])
 
@@ -253,8 +254,9 @@ class DateRangeParameterGroup:
     # otherwise, a datetime object is returned.
     custom_start_date = knext.DateTimeParameter(
         label="Start",
-        description="Limit results to the specified interval start date (inclusive).",
-        default_value=datetime(year=datetime.now(tz=timezone.utc).year, month=1, day=1),
+        description="Limit results to the specified interval start date (inclusive).\n\n**Note:** Google provides search performance data for the last 16 months only. If you select an earlier start date, the results may be incomplete.",
+        # Use the end date's year, not today's: on January 1-3 the end date is still in last year.
+        default_value=datetime(year=(datetime.now(tz=timezone.utc) - timedelta(days=3)).year, month=1, day=1),
         show_time=False
     ).rule(
         condition=knext.OneOf(subject=interval, values=[IntervalOptions.custom.name]),
@@ -279,7 +281,7 @@ class DimensionParameterGroup:
     device = knext.BoolParameter(label="Device", description="Break down the results by device.", default_value=False)
     page = knext.BoolParameter(label="Page", description="Break down the results by page.", default_value=False)
     query = knext.BoolParameter(label="Query", description="Break down the results by query.", default_value=False)
-    search_appearance = knext.BoolParameter(label="Search Appearance", description="Break down the results by search appearance.", default_value=False)
+    search_appearance = knext.BoolParameter(label="Search Appearance", description="Break down the results by search appearance.\n\n**Note:** Google doesn't allow combining Search Appearance with other dimensions. To use it, uncheck all other dimensions.", default_value=False)
 
 
 @knext.parameter_group(label="Advanced", is_advanced=True)
@@ -337,6 +339,8 @@ class SearchQuery:
     - Pages
     - Countries
     - Devices, and more
+
+    Google provides search performance data for the **last 16 months** only. If you select a custom interval that starts earlier, the results may be incomplete.
 
     ⚠️ This node requires a connected and executed **Search Analytics - Authenticator** node.
     """
@@ -427,13 +431,45 @@ class SearchQuery:
         return new_rows
 
 
+    # Google provides the last 16 months of data, but the exact cutoff is not documented,
+    # so we already warn from about 15.5 months on.
+    def warn_if_near_retention_limit(self, context):
+        start_date, _ = self.get_date_range()
+        today = datetime.now(tz=timezone.utc).date()
+        if start_date < today - timedelta(days=15.5 * 30):
+            context.set_warning(
+                "The Google Search Console API only keeps the last 16 months of data. Your start date is near or past that limit, so the earliest days may be missing."
+            )
+
+
+    # Google's API rejects requests that group by search appearance together with other dimensions.
+    def validate_dimensions(self):
+        dimensions = self.get_selected_dimensions()
+        if "searchAppearance" in dimensions and len(dimensions) > 1:
+            raise ValueError(
+                "Google doesn't allow combining Search Appearance with other dimensions. Either select only Search Appearance, or uncheck it and select any combination of the other dimensions."
+            )
+
+
+    def validate_date_range(self):
+        start_date, end_date = self.get_date_range()
+        if start_date > end_date:
+            raise ValueError(
+                "The start date is after the end date. Please choose a start date that is on or before the end date."
+            )
+
+
     def configure(self, config_context, auth_port_spec):
-        pass
+        self.validate_dimensions()
+        self.validate_date_range()
+        self.warn_if_near_retention_limit(config_context)
 
 
     def execute(self, exec_context, auth_port_object):
         if self.property_type.property is None:
             raise ValueError("No value for 'Property' parameter selected!")
+
+        self.warn_if_near_retention_limit(exec_context)
 
         service = build(
             serviceName="searchconsole",
@@ -449,33 +485,37 @@ class SearchQuery:
             user_row_limit = 100000
 
         i = 0
-        while True:
-            start_row = i * api_row_limit
+        try:
+            while True:
+                if exec_context.is_canceled() == True:
+                    raise RuntimeError("Execution was canceled.")
 
-            exec_context.set_progress(
-                (start_row / user_row_limit) if user_row_limit != 0 else 0.5,
-                "Fetched " + str(start_row) + " rows and counting ...",
-            )
+                start_row = i * api_row_limit
 
-            api_response = service.searchanalytics().query(
-                siteUrl=self.property_type.property,
-                body=self.get_request_body(row_limit=api_row_limit, start_row=start_row)
-            ).execute()
+                exec_context.set_progress(
+                    (start_row / user_row_limit) if user_row_limit != 0 else 0.5,
+                    "Fetched " + str(start_row) + " rows and counting ...",
+                )
 
-            new_rows = self.parse_response(api_response)
-            rows += new_rows
+                api_response = service.searchanalytics().query(
+                    siteUrl=self.property_type.property,
+                    body=self.get_request_body(row_limit=api_row_limit, start_row=start_row)
+                ).execute()
 
-            if user_row_limit != 0 and user_row_limit <= len(rows):
-                rows = rows[:user_row_limit]
-                break
+                new_rows = self.parse_response(api_response)
+                rows += new_rows
 
-            if len(new_rows) < api_row_limit:
-                break
+                if user_row_limit != 0 and user_row_limit <= len(rows):
+                    rows = rows[:user_row_limit]
+                    break
 
-            i += 1
-            time.sleep(lib.api_request_delay.get(i))
+                if len(new_rows) < api_row_limit:
+                    break
 
-        service.close()
+                i += 1
+                time.sleep(lib.api_request_delay.get(i))
+        finally:
+            service.close()
 
         if (
             auth_port_object.get_is_pro() != True
@@ -696,14 +736,15 @@ class UrlInspection:
             credentials=credentials
         )
 
-        api_response = service.urlInspection().index().inspect(
-                body={
-                    "siteUrl": property,
-                    "inspectionUrl": url
-                }
-            ).execute()
-
-        service.close()
+        try:
+            api_response = service.urlInspection().index().inspect(
+                    body={
+                        "siteUrl": property,
+                        "inspectionUrl": url
+                    }
+                ).execute()
+        finally:
+            service.close()
 
         return api_response
 
@@ -755,7 +796,7 @@ class UrlInspection:
                 
                 rows.append(
                     self.build_row(
-                        url=inspection_url_series[len(rows)], api_response=api_response
+                        url=inspection_url_series.iloc[len(rows)], api_response=api_response
                     )
                 )
 
@@ -834,9 +875,10 @@ class PropertyDetails:
             serviceName="searchconsole", version="v1", credentials=credentials
         )
 
-        sites_list_result = service.sites().list().execute()
-
-        service.close()
+        try:
+            sites_list_result = service.sites().list().execute()
+        finally:
+            service.close()
 
         rows = pandas.DataFrame(
             {
