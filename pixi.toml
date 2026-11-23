@@ -1,5 +1,6 @@
 [workspace]
 channels = ["knime", "conda-forge"]
+# knime-extension-bundling packs all four KNIME platforms and fails on a lockfile that lacks one.
 platforms = ["win-64", "linux-64", "osx-64", "osx-arm64"]
 
 [tasks]
@@ -10,13 +11,16 @@ format = { cmd = "ruff format ." }
 python = "3.11.*"
 pytest = "*"
 ruff = "*"
-knime-extension = "*"
-knime-python-base = "*"
+knime-extension = "5.8.*"
+knime-python-base = "5.8.*"
 knime-python-versions = "5.8.*"
-cryptography = "*" # conda-forge; PyPI dropped Intel Mac wheels at 49
+# cryptography (pulled in via google-auth) has no macOS x86_64 wheel on PyPI any more, so the PyPI
+# resolver falls back to its sdist on osx-64, which knime-extension-bundling cannot pack.
+# Taking it from conda-forge satisfies the PyPI dependency with a binary build on every platform.
+cryptography = "*"
 
 [pypi-dependencies]
-google-api-python-client = "==2.201.0"
+google-api-python-client = "==2.202.0"
 google-auth-oauthlib = "==1.5.0"
 psutil = "==7.2.2"
 requests = "==2.34.2"
